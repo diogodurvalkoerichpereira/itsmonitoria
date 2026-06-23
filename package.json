@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "description": "ITSCS - Modulo de Qualidade (monitoria de atendimento, dashboard, calibracao e contestacoes)",
   "type": "module",
+  "main": "dist/server.js",
   "scripts": {
-    "dev": "tsx watch --experimental-sqlite src/server.ts",
+    "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
-    "start": "node --no-warnings --experimental-sqlite dist/server.js",
+    "start": "node --no-warnings dist/server.js",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "engines": {
