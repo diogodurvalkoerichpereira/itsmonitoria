@@ -1,7 +1,9 @@
 import express from 'express';
+import 'express-async-errors';
 import cookieParser from 'cookie-parser';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { existsSync } from 'node:fs';
 import { initSchema } from './db.js';
 import { seed, garantirUsuariosBase } from './seed.js';
 import { autenticar, exigirNivel, exigirNivelEscrita, NIVEIS } from './auth.js';
@@ -20,9 +22,9 @@ import { anexosRouter } from './routes/anexos.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const IS_PROD = process.env.NODE_ENV === 'production';
 
-initSchema();
-seed();
-garantirUsuariosBase();
+await initSchema();
+await seed();
+await garantirUsuariosBase();
 
 const app = express();
 
@@ -60,10 +62,28 @@ app.use('/api/calibracoes', autenticar, calibracoesRouter);
 app.use('/api/usuarios', autenticar, exigirNivel(NIVEIS.gerente), usuariosRouter);
 app.use('/api', autenticar, anexosRouter);
 
-// Frontend estatico
-const publicDir = join(__dirname, '..', 'public');
-app.use(express.static(publicDir));
-app.get('*', (_req, res) => res.sendFile(join(publicDir, 'index.html')));
+// Frontend: build do Vite (gerado em dist/client por `npm run build`).
+// Em producao o Express serve esses arquivos. Em desenvolvimento o frontend
+// roda no Vite dev server (porta 5173) com proxy para esta API, entao o
+// diretorio pode nao existir aqui — nesse caso so a API responde.
+const clientDir = join(__dirname, 'client');
+const indexHtml = join(clientDir, 'index.html');
+if (existsSync(indexHtml)) {
+  app.use(express.static(clientDir));
+  app.get('*', (_req, res) => res.sendFile(indexHtml));
+} else {
+  app.get('*', (_req, res) =>
+    res.status(404).json({ erro: 'Frontend nao compilado. Rode `npm run build` ou use o Vite dev (npm run dev:client).' })
+  );
+}
+
+// Tratador de erros: captura excecoes (inclusive de handlers async, via
+// express-async-errors) e responde JSON em vez de deixar a requisicao travar.
+app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error('[erro]', err);
+  if (res.headersSent) return;
+  res.status(500).json({ erro: 'Erro interno do servidor' });
+});
 
 const PORT = Number(process.env.PORT) || 3000;
 app.listen(PORT, () => {

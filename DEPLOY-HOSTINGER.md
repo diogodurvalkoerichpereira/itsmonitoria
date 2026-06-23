@@ -46,11 +46,13 @@ Em **Environment Variables**, adicione:
 | Variável | Valor | Observação |
 |----------|-------|-----------|
 | `NODE_ENV` | `production` | Ativa cookies `Secure`, HSTS, `trust proxy` e **desliga os dados demo**. |
+| `DATABASE_URL` | *(string do Postgres)* | **Obrigatória.** Conexão do Postgres/Supabase — ver seção 4. O app **não sobe** sem isso. |
+| `DB_SCHEMA` | `its_qualidade` | **Recomendado** quando o Postgres é compartilhado (ex.: Supabase em uso). Isola as tabelas do app num schema próprio. Vazio = `public`. |
 | `JWT_SECRET` | *(64+ hex aleatórios)* | Gere com o comando abaixo. O app **não sobe** sem isso em produção. |
 | `ADMIN_NOME` | `Seu Nome` | Nome do primeiro administrador. |
 | `ADMIN_EMAIL` | `voce@suaempresa.com.br` | E-mail do primeiro admin. |
 | `ADMIN_PASSWORD` | *(mín. 8 caracteres)* | Senha do primeiro admin. **Troque após o 1º acesso.** |
-| `DATA_DIR` | `/home/SEU_USUARIO/its-qualidade-data` | **Crítico** — ver seção 4. |
+| `DATA_DIR` | `/home/SEU_USUARIO/its-qualidade-data` | Pasta persistente só para **uploads/anexos** (o banco agora é Postgres). Ver seção 4. |
 | `PORT` | *(não definir)* | A Hostinger injeta a porta automaticamente. |
 
 Gerar um `JWT_SECRET` forte:
@@ -64,24 +66,34 @@ node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 
 ---
 
-## 4. Persistência do banco (NÃO PULE ISTO)
+## 4. Banco de dados (PostgreSQL / Supabase)
 
-O banco SQLite e os uploads ficam, por padrão, em `./data` dentro do projeto.
-A cada **redeploy via GitHub a Hostinger reconstrói a pasta do app** — o que
-**apagaria todos os dados**.
+O app usa **PostgreSQL**. As tabelas são criadas **automaticamente no primeiro
+start** (`CREATE TABLE IF NOT EXISTS`) — não é preciso rodar migrações à mão.
 
-Para evitar isso, este projeto suporta a variável **`DATA_DIR`**, que move o
-banco e os uploads para um caminho **fora** da pasta do app:
+### Usando o Supabase
 
-1. No **File Manager** (ou via SSH) crie uma pasta persistente, ex.:
-   `/home/SEU_USUARIO/its-qualidade-data`
-2. Defina `DATA_DIR` apontando para ela (seção 3).
+1. No painel do Supabase: **Project Settings → Database → Connection string**.
+   Use o **Connection Pooler** (modo *Transaction*, porta `6543`), trocando
+   `[YOUR-PASSWORD]` pela senha do banco:
+   ```
+   postgresql://postgres.<ref>:<senha>@aws-0-sa-east-1.pooler.supabase.com:6543/postgres
+   ```
+2. Defina essa string em `DATABASE_URL` (seção 3). O SSL é habilitado
+   automaticamente para hosts gerenciados.
+3. **Se o projeto Supabase já tiver outras tabelas em `public`** (recomendado
+   no seu caso), defina `DB_SCHEMA=its_qualidade` para o app criar e usar um
+   schema isolado, sem tocar nas tabelas existentes.
 
-Assim, `qualidade.db` e a pasta `uploads/` sobrevivem a todos os deploys.
+> **Backup/observabilidade:** ficam por conta do Supabase (backups automáticos,
+> SQL editor, logs). Bem mais robusto que o SQLite em arquivo.
 
-> **Backup:** faça cópia periódica de `DATA_DIR` (basta copiar a pasta).
-> Para um backup consistente do SQLite, prefira copiar com o app parado
-> ou use `sqlite3 qualidade.db ".backup arquivo.db"`.
+### Uploads (anexos)
+
+Os arquivos de anexo ainda ficam em disco. Como a Hostinger reconstrói a pasta
+do app a cada deploy, defina **`DATA_DIR`** apontando para uma pasta persistente
+fora do projeto (ex.: `/home/SEU_USUARIO/its-qualidade-data`) para os uploads
+sobreviverem aos redeploys. (Os dados do banco já estão seguros no Postgres.)
 
 ---
 
@@ -106,8 +118,9 @@ Assim, `qualidade.db` e a pasta `uploads/` sobrevivem a todos os deploys.
 ## 7. Atualizações futuras
 
 Faça `git push` na branch publicada e clique em **Redeploy** (ou ative o
-auto-deploy). Como o banco está em `DATA_DIR`, os dados são preservados.
-Lembre-se: ao **alterar variáveis de ambiente**, é preciso **redeploy**.
+auto-deploy). Como os dados ficam no **Postgres** (e os uploads em `DATA_DIR`),
+nada é perdido nos redeploys. Lembre-se: ao **alterar variáveis de ambiente**,
+é preciso **redeploy**.
 
 ---
 
@@ -116,8 +129,9 @@ Lembre-se: ao **alterar variáveis de ambiente**, é preciso **redeploy**.
 | Sintoma | Causa provável | Solução |
 |---------|----------------|---------|
 | App não inicia, erro de `JWT_SECRET` | Variável ausente/curta | Defina `JWT_SECRET` com 32+ caracteres. |
-| `Cannot find module 'node:sqlite'` ou erro pedindo `--experimental-sqlite` | Node 18/20 (sem node:sqlite) ou 22.x antigo | Mude para Node **24.x**. |
-| Deploy falha no start (build OK) com "Entry File"/Express | Start usava flag não repassada pelo launcher | Já corrigido: `start` é `node dist/server.js` sem flags. Use Start command = `npm start`. |
-| Dados somem a cada deploy | `DATA_DIR` não configurado | Aponte `DATA_DIR` para pasta persistente (seção 4). |
+| App não inicia, erro `DATABASE_URL ausente` | Conexão não definida | Defina `DATABASE_URL` com a string do Postgres/Supabase (seção 4). |
+| Erro de conexão/SSL ao banco | String errada ou rede | Use o **pooler** do Supabase (porta 6543); confira host/senha. SSL é automático. |
+| Tabelas aparecem no schema errado | `DB_SCHEMA` não definido | Defina `DB_SCHEMA=its_qualidade` para isolar do `public`. |
+| Uploads somem a cada deploy | `DATA_DIR` não configurado | Aponte `DATA_DIR` para pasta persistente (seção 4). |
 | Login não persiste / cai | Cookie `Secure` sem HTTPS | Garanta domínio com SSL ativo (a Hostinger faz isso). |
 | Aparecem usuários/dados fictícios | `NODE_ENV` ≠ production ou `SEED_DEMO=true` | Defina `NODE_ENV=production` e deixe `SEED_DEMO` vazio. |
