@@ -1,10 +1,15 @@
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { mkdirSync } from 'node:fs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const dataDir = join(__dirname, '..', 'data');
+// Diretorio onde ficam o banco SQLite e os uploads. Em hospedagens que
+// reconstroem a pasta do app a cada deploy (ex.: Hostinger via GitHub),
+// defina DATA_DIR apontando para um caminho persistente fora do projeto.
+export const dataDir = process.env.DATA_DIR
+  ? resolve(process.env.DATA_DIR)
+  : join(__dirname, '..', 'data');
 mkdirSync(dataDir, { recursive: true });
 
 const sqlite = new DatabaseSync(join(dataDir, 'qualidade.db'));

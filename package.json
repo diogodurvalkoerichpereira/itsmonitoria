@@ -10,7 +10,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22 <25"
   },
   "dependencies": {
     "@types/multer": "^2.1.0",
