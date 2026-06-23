@@ -49,11 +49,13 @@ Módulo de Gestão de Qualidade do **iTS Customer Service**. Esta aplicação pe
    | `NODE_ENV` | sim | Use `production`. Ativa cookies `secure`, HSTS, `trust proxy` e **desliga os dados/usuários de demonstração**. |
    | `JWT_SECRET` | sim | Segredo de assinatura dos tokens (mín. 32 caracteres aleatórios). O app **não inicia** em produção sem ele. |
    | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | sim* | Administrador inicial criado no primeiro start (*apenas se o banco ainda não tiver usuários). Senha mín. 8 caracteres. |
-   | `PORT` | não | Porta HTTP (padrão `3000`). |
+   | `PORT` | não | Porta HTTP (padrão `3000`). Em PaaS (ex.: Hostinger) é injetada automaticamente. |
    | `SEED_DEMO` | não | `true` para popular dados fictícios também em produção (não recomendado). |
-   | `NODE_OPTIONS` | sim** | **No Node 22.x** defina `--experimental-sqlite` (o módulo `node:sqlite` exige a flag nessa versão; é dispensável no Node 24+). Necessário se a plataforma iniciar o app sem usar `npm run start`. |
+   | `DATA_DIR` | não | Caminho persistente para o banco SQLite e os uploads. **Defina em hospedagens que reconstroem a pasta do app a cada deploy** (ex.: Hostinger via GitHub), apontando para fora do projeto. Padrão: `./data`. |
 
-   > **Node 22.x:** os scripts `dev`/`start` já passam `--experimental-sqlite`. Se a hospedagem inicia o app com um comando próprio (`node dist/server.js`), defina `NODE_OPTIONS=--experimental-sqlite` no painel, ou use Node 24+.
+   > **Versão do Node:** use **Node 24+** (recomendado) ou **22+**. O módulo nativo `node:sqlite` só existe a partir do Node 22 — não use 18/20. Os scripts já sobem o app **sem flags** (`node dist/server.js`), então funciona tanto via `npm start` quanto se a hospedagem iniciar o arquivo de entrada diretamente.
+   >
+   > Para publicar na Hostinger (Web app Node.js), veja **[`DEPLOY-HOSTINGER.md`](./DEPLOY-HOSTINGER.md)**.
 
    Gere um segredo forte com:
    ```bash

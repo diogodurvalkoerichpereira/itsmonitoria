@@ -27,12 +27,15 @@ disponível nos planos **Business** e **Cloud**.
    |-------|-------|
    | **Install command** | `npm ci` |
    | **Build command** | `npm run build` |
-   | **Start command** | `npm run start` |
-   | **Node.js version** | **22.x** (recomendado) ou **24.x** |
+   | **Start command** | `npm start` |
+   | **Node.js version** | **24.x** (recomendado) — 22.x também funciona |
 
    > Não escolha Node **18** ou **20**: o app usa o SQLite nativo
-   > (`node:sqlite`), que só existe a partir do Node **22**. O `package.json`
-   > já restringe via `engines` (`>=22 <25`).
+   > (`node:sqlite`), que só existe a partir do Node **22**. Prefira o **24.x**,
+   > onde o `node:sqlite` não exige nenhuma flag de inicialização. O
+   > `package.json` já restringe via `engines` (`>=22 <25`) e o script `start`
+   > sobe o app sem flags (`node dist/server.js`), funcionando tanto no modo
+   > "npm start" quanto no modo "entry file" da Hostinger.
 
 ---
 
@@ -113,7 +116,8 @@ Lembre-se: ao **alterar variáveis de ambiente**, é preciso **redeploy**.
 | Sintoma | Causa provável | Solução |
 |---------|----------------|---------|
 | App não inicia, erro de `JWT_SECRET` | Variável ausente/curta | Defina `JWT_SECRET` com 32+ caracteres. |
-| `Cannot find module 'node:sqlite'` | Node 18/20 selecionado | Mude para Node **22.x** ou **24.x**. |
+| `Cannot find module 'node:sqlite'` ou erro pedindo `--experimental-sqlite` | Node 18/20 (sem node:sqlite) ou 22.x antigo | Mude para Node **24.x**. |
+| Deploy falha no start (build OK) com "Entry File"/Express | Start usava flag não repassada pelo launcher | Já corrigido: `start` é `node dist/server.js` sem flags. Use Start command = `npm start`. |
 | Dados somem a cada deploy | `DATA_DIR` não configurado | Aponte `DATA_DIR` para pasta persistente (seção 4). |
 | Login não persiste / cai | Cookie `Secure` sem HTTPS | Garanta domínio com SSL ativo (a Hostinger faz isso). |
 | Aparecem usuários/dados fictícios | `NODE_ENV` ≠ production ou `SEED_DEMO=true` | Defina `NODE_ENV=production` e deixe `SEED_DEMO` vazio. |
