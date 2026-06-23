@@ -18,13 +18,31 @@ import { feedbackRouter } from './routes/feedback.js';
 import { anexosRouter } from './routes/anexos.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const IS_PROD = process.env.NODE_ENV === 'production';
 
 initSchema();
 seed();
 garantirUsuariosBase();
 
 const app = express();
-app.use(express.json());
+
+// Atras de um reverse proxy (Nginx, Render, Railway, etc.) para que cookies
+// `secure` e req.ip funcionem corretamente em producao.
+if (IS_PROD) app.set('trust proxy', 1);
+
+// Cabecalhos de seguranca basicos (sem dependencias extras).
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('X-DNS-Prefetch-Control', 'off');
+  if (IS_PROD) {
+    res.setHeader('Strict-Transport-Security', 'max-age=15552000; includeSubDomains');
+  }
+  next();
+});
+
+app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
 
 // API publica
@@ -49,6 +67,10 @@ app.get('*', (_req, res) => res.sendFile(join(publicDir, 'index.html')));
 
 const PORT = Number(process.env.PORT) || 3000;
 app.listen(PORT, () => {
-  console.log(`\n  iTS Qualidade rodando em http://localhost:${PORT}`);
-  console.log(`  Login: admin@its.com.br  /  senha: admin123\n`);
+  console.log(`\n  iTS Qualidade rodando na porta ${PORT} (${IS_PROD ? 'producao' : 'desenvolvimento'})`);
+  if (!IS_PROD) {
+    console.log(`  http://localhost:${PORT}  ·  login demo: admin@its.com.br / admin123\n`);
+  } else {
+    console.log('');
+  }
 });

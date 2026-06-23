@@ -1,7 +1,25 @@
 import jwt from 'jsonwebtoken';
 import type { Request, Response, NextFunction } from 'express';
 
-const SECRET = process.env.JWT_SECRET || 'its-qualidade-dev-secret-troque-em-producao';
+const IS_PROD = process.env.NODE_ENV === 'production';
+
+function resolverSecret(): string {
+  const fromEnv = process.env.JWT_SECRET?.trim();
+  if (fromEnv && fromEnv.length >= 32) return fromEnv;
+
+  if (IS_PROD) {
+    // Em producao nunca usamos segredo padrao: tokens forjaveis = acesso total.
+    throw new Error(
+      'JWT_SECRET ausente ou fraco. Defina JWT_SECRET com no minimo 32 caracteres aleatorios em producao.'
+    );
+  }
+  console.warn(
+    '[auth] AVISO: usando JWT_SECRET de desenvolvimento. Defina JWT_SECRET antes de publicar.'
+  );
+  return 'its-qualidade-dev-secret-troque-em-producao';
+}
+
+const SECRET = resolverSecret();
 const EXPIRES = '8h';
 
 export interface TokenPayload {

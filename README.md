@@ -40,25 +40,53 @@ Módulo de Gestão de Qualidade do **iTS Customer Service**. Esta aplicação pe
    
    O projeto estará disponível em [http://localhost:3000](http://localhost:3000).
 
-### Build e Produção
-1. Compile o projeto TypeScript para JavaScript:
+## 🚀 Publicação em Produção
+
+1. **Configure as variáveis de ambiente.** Copie `.env.example` para `.env` e preencha:
+
+   | Variável | Obrigatória | Descrição |
+   |----------|:----------:|-----------|
+   | `NODE_ENV` | sim | Use `production`. Ativa cookies `secure`, HSTS, `trust proxy` e **desliga os dados/usuários de demonstração**. |
+   | `JWT_SECRET` | sim | Segredo de assinatura dos tokens (mín. 32 caracteres aleatórios). O app **não inicia** em produção sem ele. |
+   | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | sim* | Administrador inicial criado no primeiro start (*apenas se o banco ainda não tiver usuários). Senha mín. 8 caracteres. |
+   | `PORT` | não | Porta HTTP (padrão `3000`). |
+   | `SEED_DEMO` | não | `true` para popular dados fictícios também em produção (não recomendado). |
+   | `NODE_OPTIONS` | sim** | **No Node 22.x** defina `--experimental-sqlite` (o módulo `node:sqlite` exige a flag nessa versão; é dispensável no Node 24+). Necessário se a plataforma iniciar o app sem usar `npm run start`. |
+
+   > **Node 22.x:** os scripts `dev`/`start` já passam `--experimental-sqlite`. Se a hospedagem inicia o app com um comando próprio (`node dist/server.js`), defina `NODE_OPTIONS=--experimental-sqlite` no painel, ou use Node 24+.
+
+   Gere um segredo forte com:
    ```bash
-   npm run build
+   node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
    ```
 
-2. Inicie o servidor em modo de produção:
+2. **Build e start:**
    ```bash
+   npm ci
+   npm run build
    npm run start
    ```
 
+3. **Coloque atrás de um reverse proxy com HTTPS** (Nginx, Caddy, Render, Railway…). O app já habilita `trust proxy` e cookies `secure` quando `NODE_ENV=production`.
+
+### Docker (opcional)
+
+```bash
+docker build -t its-qualidade .
+docker run -d -p 3000:3000 --env-file .env -v its_data:/app/data its-qualidade
+```
+
+O banco SQLite e os uploads ficam em `/app/data` — monte um volume para persistência.
+
 ---
 
-## 🔑 Credenciais de Demonstração
+## 🔑 Credenciais
 
-Ao iniciar a aplicação pela primeira vez, o banco de dados é automaticamente populado com dados fictícios de teste e credenciais padrão:
+**Em desenvolvimento**, o banco é populado com dados fictícios e usuários de teste:
 
-- **E-mail:** `admin@its.com.br`
-- **Senha:** `admin123`
+- **E-mail:** `admin@its.com.br` · **Senha:** `admin123`
+
+> ⚠️ **Em produção esses usuários de demonstração NÃO são criados.** O primeiro administrador é definido por `ADMIN_EMAIL` / `ADMIN_PASSWORD`. Troque a senha após o primeiro acesso.
 
 ---
 

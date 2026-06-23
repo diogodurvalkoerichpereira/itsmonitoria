@@ -2,7 +2,14 @@ import bcrypt from 'bcryptjs';
 import { db } from './db.js';
 import { calcularNota, type ValorResposta } from './scoring.js';
 
+const IS_PROD = process.env.NODE_ENV === 'production';
+const SEED_DEMO = process.env.SEED_DEMO === 'true';
+
 export function seed(): void {
+  // Dados ficticios so entram em desenvolvimento ou quando SEED_DEMO=true.
+  // Em producao um banco populado com dados de demo polui o ambiente real.
+  if (IS_PROD && !SEED_DEMO) return;
+
   const jaTem = (db.prepare('SELECT COUNT(*) AS n FROM usuarios').get() as { n: number }).n > 0;
   if (jaTem) return;
 
@@ -198,11 +205,20 @@ export function seed(): void {
 }
 
 /**
- * Garante um usuario base para cada perfil (idempotente). Roda sempre no
- * startup, inclusive em bancos ja existentes (INSERT OR IGNORE pelo e-mail
- * unico), para que os perfis de demonstracao estejam disponiveis.
+ * Garante usuarios base no startup.
+ *
+ * - Em desenvolvimento (ou com SEED_DEMO=true): cria os perfis de demonstracao
+ *   com senhas conhecidas, para facilitar testes.
+ * - Em producao: NUNCA cria contas com senha padrao (seria um backdoor).
+ *   Faz apenas o bootstrap de um unico administrador a partir de
+ *   ADMIN_EMAIL/ADMIN_PASSWORD, e somente se ainda nao existir nenhum usuario.
  */
 export function garantirUsuariosBase(): void {
+  if (IS_PROD && !SEED_DEMO) {
+    bootstrapAdmin();
+    return;
+  }
+
   const base: Array<[string, string, string, string]> = [
     ['Administrador ITS', 'admin@its.com.br', 'admin123', 'admin'],
     ['Marcos Lima', 'gerente@its.com.br', 'ger123', 'gerente'],
@@ -214,4 +230,30 @@ export function garantirUsuariosBase(): void {
   for (const [nome, email, senha, perfil] of base) {
     ins.run(nome, email, bcrypt.hashSync(senha, 8), perfil);
   }
+}
+
+/** Cria o administrador inicial em producao a partir de variaveis de ambiente. */
+function bootstrapAdmin(): void {
+  const jaTem = (db.prepare('SELECT COUNT(*) AS n FROM usuarios').get() as { n: number }).n > 0;
+  if (jaTem) return;
+
+  const email = process.env.ADMIN_EMAIL?.toLowerCase().trim();
+  const senha = process.env.ADMIN_PASSWORD;
+  const nome = process.env.ADMIN_NOME?.trim() || 'Administrador';
+
+  if (!email || !senha) {
+    console.warn(
+      '[seed] Nenhum usuario encontrado e ADMIN_EMAIL/ADMIN_PASSWORD nao definidos. ' +
+        'Defina-os para criar o administrador inicial.'
+    );
+    return;
+  }
+  if (senha.length < 8) {
+    console.warn('[seed] ADMIN_PASSWORD muito curta (minimo 8 caracteres). Administrador nao criado.');
+    return;
+  }
+
+  db.prepare('INSERT INTO usuarios (nome, email, senha_hash, perfil) VALUES (?,?,?,?)')
+    .run(nome, email, bcrypt.hashSync(senha, 10), 'admin');
+  console.log(`[seed] Administrador inicial criado: ${email}`);
 }

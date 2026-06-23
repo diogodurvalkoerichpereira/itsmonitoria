@@ -4,5 +4,9 @@ data/*.db
 data/*.db-*
 data/uploads/
 .env
+.env.*
+!.env.example
 *.log
+*.zip
 .claude/
+.DS_Store
