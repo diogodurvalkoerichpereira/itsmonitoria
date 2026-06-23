@@ -1,13 +1,12 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { randomUUID } from 'node:crypto';
-import { dirname, join, extname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join, extname } from 'node:path';
 import { mkdirSync, createReadStream, existsSync, unlinkSync } from 'node:fs';
-import { db } from '../db.js';
+import { db, dataDir } from '../db.js';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-export const uploadDir = join(__dirname, '..', '..', 'data', 'uploads');
+// Uploads ficam junto do banco, no mesmo diretorio de dados (ver DATA_DIR).
+export const uploadDir = join(dataDir, 'uploads');
 mkdirSync(uploadDir, { recursive: true });
 
 const storage = multer.diskStorage({
