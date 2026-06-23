@@ -30,15 +30,51 @@ export function seed(): void {
   const insEq = db.prepare('INSERT INTO equipes (nome, supervisor) VALUES (?,?)');
   const equipeIds = equipes.map((e) => insEq.run(e[0], e[1]).lastInsertRowid as number);
 
+  // ---- Membros das equipes (supervisores, monitores, gerentes) ----
+  const insMembro = db.prepare('INSERT OR IGNORE INTO equipe_membros (equipe_id, nome, papel) VALUES (?,?,?)');
+  const equipeMembros: Record<number, { supervisores: string[]; monitores: string[]; gerentes: string[] }> = {
+    [equipeIds[0]]: {
+      supervisores: ['Carla Monteiro', 'Fernanda Ribeiro'],
+      monitores:    ['Rafael Souza', 'Juliana Alves'],
+      gerentes:     ['Administrador ITS'],
+    },
+    [equipeIds[1]]: {
+      supervisores: ['Marcos Lima'],
+      monitores:    ['Rafael Souza', 'Juliana Alves', 'Ana Clara Mota'],
+      gerentes:     ['Administrador ITS', 'Ricardo Oliveira'],
+    },
+    [equipeIds[2]]: {
+      supervisores: ['Patricia Gomes', 'Lucas Henrique'],
+      monitores:    ['Juliana Alves'],
+      gerentes:     ['Administrador ITS'],
+    },
+    [equipeIds[3]]: {
+      supervisores: ['Bruno Carvalho'],
+      monitores:    ['Rafael Souza'],
+      gerentes:     ['Administrador ITS', 'Ricardo Oliveira'],
+    },
+  };
+  for (const [eqId, roles] of Object.entries(equipeMembros)) {
+    for (const nome of roles.supervisores) insMembro.run(Number(eqId), nome, 'supervisor');
+    for (const nome of roles.monitores)    insMembro.run(Number(eqId), nome, 'monitor');
+    for (const nome of roles.gerentes)     insMembro.run(Number(eqId), nome, 'gerente');
+  }
+
   // ---- Operadores ----
   const nomes = [
     'Ana Pereira', 'Lucas Ferreira', 'Mariana Costa', 'Pedro Santos', 'Beatriz Rocha',
     'Gustavo Almeida', 'Larissa Dias', 'Felipe Barbosa', 'Camila Nunes', 'Thiago Martins',
     'Vanessa Lima', 'Rodrigo Pinto', 'Aline Castro', 'Diego Ramos', 'Patricia Melo', 'Bruno Teixeira',
   ];
-  const insOp = db.prepare('INSERT INTO operadores (nome, matricula, equipe_id, cargo) VALUES (?,?,?,?)');
+  const insOp = db.prepare('INSERT INTO operadores (nome, matricula, cpf, equipe_id, cargo) VALUES (?,?,?,?,?)');
   const operadorIds = nomes.map((nome, i) =>
-    insOp.run(nome, `OP${String(1001 + i)}`, equipeIds[i % equipeIds.length], 'Operador I').lastInsertRowid as number
+    insOp.run(
+      nome,
+      `OP${String(1001 + i)}`,
+      `123.456.789-${String(10 + i)}`,
+      equipeIds[i % equipeIds.length],
+      'Operador I'
+    ).lastInsertRowid as number
   );
 
   // ---- Formulario de monitoria padrao ----
@@ -65,8 +101,12 @@ export function seed(): void {
   // ---- Monitorias dos ultimos 6 meses ----
   const canais = ['Telefone', 'Chat', 'WhatsApp', 'Email'];
   const insMon = db.prepare(`
-    INSERT INTO monitorias (formulario_id, operador_id, monitor_id, data_atendimento, canal, protocolo, nota_final, falha_critica, status, observacoes, criado_em)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?)
+    INSERT INTO monitorias (
+      formulario_id, operador_id, monitor_id, data_atendimento, canal, protocolo,
+      nota_final, falha_critica, status, observacoes, operacao, telefone_cliente,
+      tabulacao, produto, data_monitoria, monitoria_padrao, feedback_aplicado,
+      data_feedback, status_feedback, sla, detalhe_sla, criado_em
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
   `);
   const insResp = db.prepare('INSERT INTO respostas (monitoria_id, criterio_id, valor, comentario) VALUES (?,?,?,?)');
 
@@ -97,10 +137,28 @@ export function seed(): void {
       });
 
       const { nota, falhaCritica } = calcularNota(formId, respostas);
+      
+      const feedbackAplicado = Math.random() > 0.3 ? 1 : 0;
+      const statusFeedback = feedbackAplicado ? 'Realizado' : 'Pendente';
+      const dataFeedback = feedbackAplicado ? iso : null;
+      const sla = nota >= 80 ? 'No Prazo' : 'Tratativa Necessária';
+      const detalheSla = nota >= 80 ? 'SLA de qualidade atingido.' : 'Abaixo da meta de 80%. Necessário plano de ação.';
+
       const mid = insMon.run(
         formId, operadorId, monitorId, iso, pick(canais),
         `PROT-${++protocolo}`, nota, falhaCritica ? 1 : 0, 'concluida',
         falhaCritica ? 'Falha critica identificada - reciclagem necessaria' : null,
+        pick(['Receptivo', 'Ativo', 'Suporte']), // operacao
+        `(11) 9${Math.floor(80000000 + Math.random() * 19999999)}`, // telefone_cliente
+        pick(['Dúvida', 'Reclamação', 'Cancelamento', 'Elogio']), // tabulacao
+        pick(['Internet Fibra', 'TV HD', 'Telefone Fixo', 'Combo ITS']), // produto
+        iso, // data_monitoria
+        1, // monitoria_padrao
+        feedbackAplicado,
+        dataFeedback,
+        statusFeedback,
+        sla,
+        detalheSla,
         iso + ' 10:00:00'
       ).lastInsertRowid as number;
 

@@ -12,36 +12,41 @@ export async function operadoresView(el) {
     </div>
     <div class="its-card table-wrap">
       <table class="its-table">
-        <thead><tr><th>Matrícula</th><th>Nome</th><th>Equipe</th><th>Cargo</th><th>Monitorias</th><th>Nota média</th><th>Status</th><th></th></tr></thead>
+        <thead><tr><th>Matrícula</th><th>Nome</th><th>CPF</th><th>Equipe</th><th>Cargo</th><th>Monitorias</th><th>Nota média</th><th>Status</th><th>Ações</th></tr></thead>
         <tbody>
           ${ops.map((o) => `
             <tr>
               <td>${esc(o.matricula || '—')}</td>
               <td>${esc(o.nome)}</td>
+              <td>${esc(o.cpf || '—')}</td>
               <td>${esc(o.equipe_nome || '—')}</td>
               <td>${esc(o.cargo || '—')}</td>
               <td>${o.total_monitorias || 0}</td>
               <td>${o.nota_media != null ? scorePill(o.nota_media) : '—'}</td>
               <td>${o.ativo ? '<span class="its-badge badge-green">Ativo</span>' : '<span class="its-badge badge-gray">Inativo</span>'}</td>
               <td><button class="its-btn its-btn-ghost its-btn-sm" data-edit="${o.id}">Editar</button></td>
-            </tr>`).join('') || '<tr><td colspan="8" class="empty">Nenhum operador cadastrado</td></tr>'}
+            </tr>`).join('') || '<tr><td colspan="9" class="empty">Nenhum operador cadastrado</td></tr>'}
         </tbody>
       </table>
     </div>`;
 
-  const form = (o = {}) => {
-    const opts = equipes.map((e) => `<option value="${e.id}" ${o.equipe_id === e.id ? 'selected' : ''}>${esc(e.nome)}</option>`).join('');
+  const form = (o) => {
+    const obj = o || {};
+    const opts = equipes.map((e) => `<option value="${e.id}" ${obj.equipe_id === e.id ? 'selected' : ''}>${esc(e.nome)}</option>`).join('');
     return h(`<form>
       <div class="form-row">
-        <div class="form-group"><label class="its-label">Nome</label><input class="its-input" name="nome" value="${esc(o.nome || '')}" required></div>
-        <div class="form-group"><label class="its-label">Matrícula</label><input class="its-input" name="matricula" value="${esc(o.matricula || '')}"></div>
+        <div class="form-group"><label class="its-label">Nome</label><input class="its-input" name="nome" value="${esc(obj.nome || '')}" required></div>
+        <div class="form-group"><label class="its-label">Matrícula</label><input class="its-input" name="matricula" value="${esc(obj.matricula || '')}"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="its-label">CPF</label><input class="its-input" name="cpf" value="${esc(obj.cpf || '')}" placeholder="000.000.000-00"></div>
+        <div class="form-group"><label class="its-label">Cargo</label><input class="its-input" name="cargo" value="${esc(obj.cargo || '')}"></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label class="its-label">Equipe</label><select class="its-select" name="equipe_id"><option value="">—</option>${opts}</select></div>
-        <div class="form-group"><label class="its-label">Cargo</label><input class="its-input" name="cargo" value="${esc(o.cargo || '')}"></div>
+        <div class="form-group"><label class="its-label">Data de admissão</label><input class="its-input" type="date" name="data_admissao" value="${esc(obj.data_admissao || '')}"></div>
       </div>
-      <div class="form-group"><label class="its-label">Data de admissão</label><input class="its-input" type="date" name="data_admissao" value="${esc(o.data_admissao || '')}"></div>
-      ${o.id ? `<label class="its-label"><input type="checkbox" name="ativo" ${o.ativo ? 'checked' : ''}> Ativo</label>` : ''}
+      ${obj.id ? `<label class="its-label"><input type="checkbox" name="ativo" ${obj.ativo ? 'checked' : ''}> Ativo</label>` : ''}
     </form>`);
   };
 
@@ -60,7 +65,7 @@ export async function operadoresView(el) {
     };
   };
 
-  el.querySelector('#novo').onclick = () => abrir(null);
+  el.querySelector('#novo').onclick = () => abrir({});
   el.querySelectorAll('[data-edit]').forEach((b) =>
     b.onclick = () => abrir(ops.find((o) => o.id == b.dataset.edit)));
 }

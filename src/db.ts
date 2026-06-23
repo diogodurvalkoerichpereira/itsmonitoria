@@ -61,10 +61,20 @@ export function initSchema(): void {
     criado_em   TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
+  CREATE TABLE IF NOT EXISTS equipe_membros (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    equipe_id INTEGER NOT NULL REFERENCES equipes(id) ON DELETE CASCADE,
+    nome      TEXT NOT NULL,
+    papel     TEXT NOT NULL CHECK(papel IN ('supervisor','monitor','gerente')),
+    criado_em TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(equipe_id, nome, papel)
+  );
+
   CREATE TABLE IF NOT EXISTS operadores (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     nome          TEXT NOT NULL,
     matricula     TEXT UNIQUE,
+    cpf           TEXT,
     equipe_id     INTEGER REFERENCES equipes(id) ON DELETE SET NULL,
     cargo         TEXT,
     data_admissao TEXT,
@@ -91,18 +101,29 @@ export function initSchema(): void {
   );
 
   CREATE TABLE IF NOT EXISTS monitorias (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    formulario_id   INTEGER NOT NULL REFERENCES formularios(id),
-    operador_id     INTEGER NOT NULL REFERENCES operadores(id),
-    monitor_id      INTEGER NOT NULL REFERENCES usuarios(id),
-    data_atendimento TEXT,
-    canal           TEXT DEFAULT 'Telefone',
-    protocolo       TEXT,
-    nota_final      REAL NOT NULL DEFAULT 0,
-    falha_critica   INTEGER NOT NULL DEFAULT 0,
-    status          TEXT NOT NULL DEFAULT 'concluida',
-    observacoes     TEXT,
-    criado_em       TEXT NOT NULL DEFAULT (datetime('now'))
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    formulario_id     INTEGER NOT NULL REFERENCES formularios(id),
+    operador_id       INTEGER NOT NULL REFERENCES operadores(id),
+    monitor_id        INTEGER NOT NULL REFERENCES usuarios(id),
+    data_atendimento  TEXT,
+    canal             TEXT DEFAULT 'Telefone',
+    protocolo         TEXT,
+    nota_final        REAL NOT NULL DEFAULT 0,
+    falha_critica     INTEGER NOT NULL DEFAULT 0,
+    status            TEXT NOT NULL DEFAULT 'concluida',
+    observacoes       TEXT,
+    operacao          TEXT,
+    telefone_cliente  TEXT,
+    tabulacao         TEXT,
+    produto           TEXT,
+    data_monitoria    TEXT DEFAULT (datetime('now')),
+    monitoria_padrao  INTEGER DEFAULT 1,
+    feedback_aplicado INTEGER DEFAULT 0,
+    data_feedback     TEXT,
+    status_feedback   TEXT DEFAULT 'Pendente',
+    sla               TEXT,
+    detalhe_sla       TEXT,
+    criado_em         TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
   CREATE TABLE IF NOT EXISTS respostas (
@@ -143,4 +164,25 @@ export function initSchema(): void {
     comentario    TEXT
   );
   `);
+
+  // Migrations seguras para bancos de dados ja existentes
+  const addColumn = (table: string, col: string, type: string) => {
+    try {
+      sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${type}`);
+    } catch {
+      // Ignora erro se a coluna ja existir no banco existente
+    }
+  };
+  addColumn('operadores', 'cpf', 'TEXT');
+  addColumn('monitorias', 'operacao', 'TEXT');
+  addColumn('monitorias', 'telefone_cliente', 'TEXT');
+  addColumn('monitorias', 'tabulacao', 'TEXT');
+  addColumn('monitorias', 'produto', 'TEXT');
+  addColumn('monitorias', 'data_monitoria', "TEXT DEFAULT (datetime('now'))");
+  addColumn('monitorias', 'monitoria_padrao', 'INTEGER DEFAULT 1');
+  addColumn('monitorias', 'feedback_aplicado', 'INTEGER DEFAULT 0');
+  addColumn('monitorias', 'data_feedback', 'TEXT');
+  addColumn('monitorias', 'status_feedback', "TEXT DEFAULT 'Pendente'");
+  addColumn('monitorias', 'sla', 'TEXT');
+  addColumn('monitorias', 'detalhe_sla', 'TEXT');
 }

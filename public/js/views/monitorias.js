@@ -42,51 +42,148 @@ export async function monitoriasView(el) {
     const mons = await api.get('/monitorias?' + q.toString());
     el.querySelector('#lista').innerHTML = `
       <table class="its-table">
-        <thead><tr><th>Data</th><th>Protocolo</th><th>Operador</th><th>Equipe</th><th>Canal</th><th>Monitor</th><th>Nota</th><th>Status</th></tr></thead>
+        <thead>
+          <tr>
+            <th>Editar</th>
+            <th>Excluir</th>
+            <th>ID</th>
+            <th>Questionario</th>
+            <th>Data Atendimento</th>
+            <th>Nota</th>
+            <th>Operador</th>
+            <th>CPF Operador</th>
+            <th>Operacao</th>
+            <th>Telefone Cliente</th>
+            <th>Tabulação</th>
+            <th>Equipe</th>
+            <th>Produto</th>
+            <th>Data Monitoria</th>
+            <th>Monitor</th>
+            <th>Monitoria Padrao</th>
+            <th>Feedback Aplicado</th>
+            <th>Data Feedback</th>
+            <th>Status Feedback</th>
+            <th>SLA</th>
+            <th>Detalhe SLA</th>
+          </tr>
+        </thead>
         <tbody>
           ${mons.map((m) => `
             <tr class="row-click" data-id="${m.id}">
+              <td><button class="its-btn its-btn-ghost its-btn-sm edit-btn" data-id="${m.id}">Editar</button></td>
+              <td><button class="its-btn its-btn-danger its-btn-sm del-btn" data-id="${m.id}">Excluir</button></td>
+              <td><b>${m.id}</b></td>
+              <td>${esc(m.formulario_nome)}</td>
               <td>${fmtData(m.data_atendimento)}</td>
-              <td>${esc(m.protocolo || '—')}</td>
-              <td>${esc(m.operador_nome)}</td>
-              <td>${esc(m.equipe_nome || '—')}</td>
-              <td>${esc(m.canal)}</td>
-              <td>${esc(m.monitor_nome)}</td>
               <td>${m.falha_critica ? '<span class="its-badge badge-red">Falha crítica</span>' : scorePill(m.nota_final)}</td>
-              <td>${statusBadge(m.status)}</td>
-            </tr>`).join('') || '<tr><td colspan="8" class="empty">Nenhuma monitoria encontrada</td></tr>'}
+              <td>${esc(m.operador_nome)}</td>
+              <td>${esc(m.operador_cpf || '—')}</td>
+              <td>${esc(m.operacao || '—')}</td>
+              <td>${esc(m.telefone_cliente || '—')}</td>
+              <td>${esc(m.tabulacao || '—')}</td>
+              <td>${esc(m.equipe_nome || '—')}</td>
+              <td>${esc(m.produto || '—')}</td>
+              <td>${fmtData(m.data_monitoria)}</td>
+              <td>${esc(m.monitor_nome)}</td>
+              <td>${m.monitoria_padrao ? 'Sim' : 'Não'}</td>
+              <td>${m.feedback_aplicado ? 'Sim' : 'Não'}</td>
+              <td>${fmtData(m.data_feedback)}</td>
+              <td>${esc(m.status_feedback || '—')}</td>
+              <td>${esc(m.sla || '—')}</td>
+              <td>${esc(m.detalhe_sla || '—')}</td>
+            </tr>`).join('') || `<tr><td colspan="21" class="empty">Nenhuma monitoria encontrada</td></tr>`}
         </tbody>
       </table>`;
-    el.querySelectorAll('[data-id]').forEach((tr) => tr.onclick = () => detalhe(tr.dataset.id, carregar));
+
+    el.querySelectorAll('tr.row-click').forEach((tr) => {
+      tr.onclick = (e) => {
+        if (e.target.closest('.edit-btn') || e.target.closest('.del-btn')) return;
+        detalhe(tr.dataset.id, carregar);
+      };
+    });
+
+    el.querySelectorAll('.edit-btn').forEach((btn) => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        abrirMonitoria(Number(btn.dataset.id), carregar);
+      };
+    });
+
+    el.querySelectorAll('.del-btn').forEach((btn) => {
+      btn.onclick = async (e) => {
+        e.stopPropagation();
+        if (confirm('Deseja realmente excluir esta monitoria?')) {
+          try {
+            await api.delete('/monitorias/' + btn.dataset.id);
+            toast('Monitoria excluída');
+            carregar();
+          } catch (err) {
+            toast(err.message, true);
+          }
+        }
+      };
+    });
   }
 
   el.querySelector('#aplicar').onclick = carregar;
-  el.querySelector('#nova').onclick = () => novaMonitoria(carregar);
+  el.querySelector('#nova').onclick = () => abrirMonitoria(null, carregar);
   await carregar();
 }
 
-// ---------- NOVA MONITORIA ----------
-async function novaMonitoria(reload) {
+// ---------- NOVA / EDITAR MONITORIA ----------
+async function abrirMonitoria(id = null, reload) {
   const [forms, ops] = await Promise.all([api.get('/formularios'), api.get('/operadores')]);
   const ativos = forms.filter((f) => f.ativo);
   if (!ativos.length) return toast('Cadastre um formulário primeiro', true);
 
+  let m = null;
+  if (id) {
+    m = await api.get('/monitorias/' + id);
+  }
+
   const body = h(`<div>
     <div class="form-row">
       <div class="form-group"><label class="its-label">Formulário</label>
-        <select class="its-select" id="m-form">${ativos.map((f) => `<option value="${f.id}">${esc(f.nome)}</option>`).join('')}</select></div>
+        <select class="its-select" id="m-form" ${m ? 'disabled' : ''}>${ativos.map((f) => `<option value="${f.id}" ${m?.formulario_id === f.id ? 'selected' : ''}>${esc(f.nome)}</option>`).join('')}</select></div>
       <div class="form-group"><label class="its-label">Operador</label>
-        <select class="its-select" id="m-op">${ops.filter((o) => o.ativo).map((o) => `<option value="${o.id}">${esc(o.nome)} ${o.matricula ? '· ' + esc(o.matricula) : ''}</option>`).join('')}</select></div>
+        <select class="its-select" id="m-op">${ops.filter((o) => o.ativo || o.id === m?.operador_id).map((o) => `<option value="${o.id}" ${m?.operador_id === o.id ? 'selected' : ''}>${esc(o.nome)} ${o.matricula ? '· ' + esc(o.matricula) : ''}</option>`).join('')}</select></div>
     </div>
     <div class="form-row">
-      <div class="form-group"><label class="its-label">Data do atendimento</label><input class="its-input" type="date" id="m-data"></div>
+      <div class="form-group"><label class="its-label">Data do atendimento</label><input class="its-input" type="date" id="m-data" value="${m?.data_atendimento || ''}"></div>
       <div class="form-group"><label class="its-label">Canal</label>
-        <select class="its-select" id="m-canal">${['Telefone','Chat','WhatsApp','Email'].map((c) => `<option>${c}</option>`).join('')}</select></div>
+        <select class="its-select" id="m-canal">${['Telefone','Chat','WhatsApp','Email'].map((c) => `<option ${m?.canal === c ? 'selected' : ''}>${c}</option>`).join('')}</select></div>
     </div>
-    <div class="form-group"><label class="its-label">Protocolo</label><input class="its-input" id="m-prot" placeholder="PROT-00000"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="its-label">Protocolo</label><input class="its-input" id="m-prot" placeholder="PROT-00000" value="${esc(m?.protocolo || '')}"></div>
+      <div class="form-group"><label class="its-label">Operação</label>
+        <select class="its-select" id="m-operacao">${['Receptivo','Ativo','Suporte','Outros'].map((op) => `<option ${m?.operacao === op ? 'selected' : ''}>${op}</option>`).join('')}</select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="its-label">Telefone Cliente</label><input class="its-input" id="m-tel" placeholder="(11) 99999-9999" value="${esc(m?.telefone_cliente || '')}"></div>
+      <div class="form-group"><label class="its-label">Tabulação</label><input class="its-input" id="m-tab" placeholder="ex: Reclamação" value="${esc(m?.tabulacao || '')}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="its-label">Produto</label><input class="its-input" id="m-prod" placeholder="ex: Internet Fibra" value="${esc(m?.produto || '')}"></div>
+      <div class="form-group"><label class="its-label">Data da Monitoria</label><input class="its-input" type="date" id="m-data-mon" value="${m?.data_monitoria || new Date().toISOString().slice(0, 10)}"></div>
+    </div>
+    <div class="form-row" style="margin-top: 8px; margin-bottom: 8px;">
+      <div class="form-group" style="display:flex;align-items:center;gap:8px;margin-bottom:0"><label class="its-label" style="margin-bottom:0;display:flex;align-items:center;gap:6px"><input type="checkbox" id="m-padrao" ${m ? (m.monitoria_padrao ? 'checked' : '') : 'checked'}> Monitoria Padrão</label></div>
+      <div class="form-group" style="display:flex;align-items:center;gap:8px;margin-bottom:0"><label class="its-label" style="margin-bottom:0;display:flex;align-items:center;gap:6px"><input type="checkbox" id="m-feed-ap" ${m?.feedback_aplicado ? 'checked' : ''}> Feedback Aplicado</label></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="its-label">Data do Feedback</label><input class="its-input" type="date" id="m-feed-data" value="${m?.data_feedback || ''}"></div>
+      <div class="form-group"><label class="its-label">Status do Feedback</label>
+        <select class="its-select" id="m-feed-status">${['Pendente','Realizado','Recusado'].map((sf) => `<option ${m?.status_feedback === sf ? 'selected' : ''}>${sf}</option>`).join('')}</select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="its-label">SLA</label>
+        <select class="its-select" id="m-sla">${['No Prazo','Tratativa Necessária','Excedido'].map((sl) => `<option ${m?.sla === sl ? 'selected' : ''}>${sl}</option>`).join('')}</select></div>
+      <div class="form-group"><label class="its-label">Detalhe SLA</label><input class="its-input" id="m-sla-det" placeholder="ex: Dentro do prazo" value="${esc(m?.detalhe_sla || '')}"></div>
+    </div>
+    
     <div class="cat-head">Avaliação dos critérios</div>
     <div id="crit-area"><div class="empty">Selecione um formulário</div></div>
-    <div class="form-group" style="margin-top:14px"><label class="its-label">Observações / feedback ao operador</label><textarea class="its-input" id="m-obs" rows="2"></textarea></div>
+    <div class="form-group" style="margin-top:14px"><label class="its-label">Observações / feedback ao operador</label><textarea class="its-input" id="m-obs" rows="2">${esc(m?.observacoes || '')}</textarea></div>
     <div class="its-alert alert-info" id="m-preview" style="margin-top:8px">Nota parcial: <b id="m-nota">—</b></div>
   </div>`);
 
@@ -99,15 +196,28 @@ async function novaMonitoria(reload) {
     criterios = f.criterios;
     respostas.clear();
     const grupos = {};
-    criterios.forEach((c) => { (grupos[c.categoria] ||= []).push(c); respostas.set(c.id, { valor: 'conforme', peso: c.peso, fatal: c.fatal }); });
+    criterios.forEach((c) => {
+      let valor = 'conforme';
+      if (m && m.formulario_id === Number(formId)) {
+        const respExistente = m.respostas.find((r) => r.criterio_id === c.id);
+        if (respExistente) valor = respExistente.valor;
+      }
+      (grupos[c.categoria] ||= []).push(c);
+      respostas.set(c.id, { valor, peso: c.peso, fatal: c.fatal });
+    });
+
     area.innerHTML = Object.entries(grupos).map(([cat, items]) => `
       <div class="cat-head">${esc(cat)}</div>
-      ${items.map((c) => `
+      ${items.map((c) => {
+        const respObj = respostas.get(c.id);
+        return `
         <div class="crit-row" data-crit="${c.id}">
           <div>${esc(c.descricao)} <span style="color:var(--its-muted);font-size:.72rem">(peso ${c.peso})</span> ${c.fatal ? '<span class="fatal-tag">● FATAL</span>' : ''}</div>
-          <div class="crit-opts">${VALORES.map((v) => `<button type="button" class="opt-btn ${v[0] === 'conforme' ? v[2] : ''}" data-v="${v[0]}">${v[1]}</button>`).join('')}</div>
-        </div>`).join('')}
+          <div class="crit-opts">${VALORES.map((v) => `<button type="button" class="opt-btn ${v[0] === respObj.valor ? v[2] : ''}" data-v="${v[0]}">${v[1]}</button>`).join('')}</div>
+        </div>`;
+      }).join('')}
     `).join('');
+
     area.querySelectorAll('.crit-row').forEach((row) => {
       const cid = Number(row.dataset.crit);
       row.querySelectorAll('.opt-btn').forEach((btn) => {
@@ -138,10 +248,10 @@ async function novaMonitoria(reload) {
   }
 
   body.querySelector('#m-form').onchange = (e) => carregaCriterios(e.target.value);
-  await carregaCriterios(ativos[0].id);
+  await carregaCriterios(m ? m.formulario_id : ativos[0].id);
 
-  const salvar = h(`<button class="its-btn its-btn-primary">Salvar monitoria</button>`);
-  const { close } = openModal({ title: 'Nova monitoria', body, footer: salvar, lg: true });
+  const salvar = h(`<button class="its-btn its-btn-primary">${m ? 'Salvar alterações' : 'Salvar monitoria'}</button>`);
+  const { close } = openModal({ title: m ? 'Editar monitoria' : 'Nova monitoria', body, footer: salvar, lg: true });
   salvar.onclick = async () => {
     const payload = {
       formulario_id: Number(body.querySelector('#m-form').value),
@@ -150,12 +260,28 @@ async function novaMonitoria(reload) {
       canal: body.querySelector('#m-canal').value,
       protocolo: body.querySelector('#m-prot').value.trim(),
       observacoes: body.querySelector('#m-obs').value.trim(),
+      operacao: body.querySelector('#m-operacao').value,
+      telefone_cliente: body.querySelector('#m-tel').value.trim(),
+      tabulacao: body.querySelector('#m-tab').value.trim(),
+      produto: body.querySelector('#m-prod').value.trim(),
+      data_monitoria: body.querySelector('#m-data-mon').value || null,
+      monitoria_padrao: body.querySelector('#m-padrao').checked ? 1 : 0,
+      feedback_aplicado: body.querySelector('#m-feed-ap').checked ? 1 : 0,
+      data_feedback: body.querySelector('#m-feed-data').value || null,
+      status_feedback: body.querySelector('#m-feed-status').value,
+      sla: body.querySelector('#m-sla').value,
+      detalhe_sla: body.querySelector('#m-sla-det').value.trim(),
       respostas: [...respostas.entries()].map(([criterio_id, r]) => ({ criterio_id, valor: r.valor })),
     };
     try {
-      const res = await api.post('/monitorias', payload);
+      if (m) {
+        await api.put('/monitorias/' + m.id, payload);
+        toast('Monitoria atualizada');
+      } else {
+        const res = await api.post('/monitorias', payload);
+        toast(`Monitoria salva · nota ${res.nota_final.toFixed(1)}`);
+      }
       close();
-      toast(`Monitoria salva · nota ${res.nota_final.toFixed(1)}`);
       reload();
     } catch (e) { toast(e.message, true); }
   };
@@ -170,18 +296,37 @@ async function detalhe(id, reload) {
 
   const body = h(`<div>
     <div class="card-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
-      <div class="its-card"><div class="stat-label">Operador</div><b>${esc(m.operador_nome)}</b></div>
-      <div class="its-card"><div class="stat-label">Canal · Data</div><b>${esc(m.canal)} · ${fmtData(m.data_atendimento)}</b></div>
+      <div class="its-card"><div class="stat-label">Operador</div><b>${esc(m.operador_nome)}</b><div style="font-size:0.75rem;color:var(--its-muted)">CPF: ${esc(m.operador_cpf || '—')}</div></div>
+      <div class="its-card"><div class="stat-label">Canal · Data Atend.</div><b>${esc(m.canal)} · ${fmtData(m.data_atendimento)}</b></div>
       <div class="its-card"><div class="stat-label">Monitor</div><b>${esc(m.monitor_nome)}</b></div>
       <div class="its-card"><div class="stat-label">Nota final</div>${m.falha_critica ? '<span class="its-badge badge-red">Falha crítica · 0</span>' : scorePill(m.nota_final)}</div>
     </div>
+    
+    <div class="its-card" style="margin-bottom:16px">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;font-size:0.8rem">
+        <div><span style="color:var(--its-muted)">Operação:</span> <b>${esc(m.operacao || '—')}</b></div>
+        <div><span style="color:var(--its-muted)">Telefone Cliente:</span> <b>${esc(m.telefone_cliente || '—')}</b></div>
+        <div><span style="color:var(--its-muted)">Tabulação:</span> <b>${esc(m.tabulacao || '—')}</b></div>
+        <div><span style="color:var(--its-muted)">Produto:</span> <b>${esc(m.produto || '—')}</b></div>
+        <div><span style="color:var(--its-muted)">Data Monitoria:</span> <b>${fmtData(m.data_monitoria)}</b></div>
+        <div><span style="color:var(--its-muted)">Monitoria Padrão:</span> <b>${m.monitoria_padrao ? 'Sim' : 'Não'}</b></div>
+        <div><span style="color:var(--its-muted)">Feedback Aplicado:</span> <b>${m.feedback_aplicado ? 'Sim' : 'Não'}</b></div>
+        <div><span style="color:var(--its-muted)">Data Feedback:</span> <b>${fmtData(m.data_feedback)}</b></div>
+        <div><span style="color:var(--its-muted)">Status Feedback:</span> <b>${esc(m.status_feedback || '—')}</b></div>
+        <div><span style="color:var(--its-muted)">SLA:</span> <b>${esc(m.sla || '—')}</b></div>
+        <div style="grid-column: span 2"><span style="color:var(--its-muted)">Detalhe SLA:</span> <b>${esc(m.detalhe_sla || '—')}</b></div>
+      </div>
+    </div>
+
     ${m.observacoes ? `<div class="its-alert alert-info"><b>Observações:</b>&nbsp;${esc(m.observacoes)}</div>` : ''}
+    
     ${Object.entries(grupos).map(([cat, items]) => `
       <div class="cat-head">${esc(cat)}</div>
       ${items.map((r) => `<div class="crit-row" style="grid-template-columns:1fr auto">
         <div>${esc(r.descricao)} ${r.fatal ? '<span class="fatal-tag">● FATAL</span>' : ''}</div>
         <div>${rotulo[r.valor] || r.valor}</div></div>`).join('')}
     `).join('')}
+    
     ${m.contestacoes?.length ? `<div class="cat-head">Contestações</div>${m.contestacoes.map((c) => `
       <div class="its-alert alert-warning"><div><b>${statusBadge(c.status)}</b><br>${esc(c.motivo)}${c.resposta ? `<br><i>Resposta: ${esc(c.resposta)}</i>` : ''}</div></div>`).join('')}` : ''}
   </div>`);

@@ -16,18 +16,18 @@ operadoresRouter.get('/', (_req, res) => {
 });
 
 operadoresRouter.post('/', (req, res) => {
-  const { nome, matricula, equipe_id, cargo, data_admissao } = req.body ?? {};
+  const { nome, matricula, cpf, equipe_id, cargo, data_admissao } = req.body ?? {};
   if (!nome) return res.status(400).json({ erro: 'Nome obrigatorio' });
   const info = db
-    .prepare('INSERT INTO operadores (nome, matricula, equipe_id, cargo, data_admissao) VALUES (?,?,?,?,?)')
-    .run(nome, matricula ?? null, equipe_id ?? null, cargo ?? null, data_admissao ?? null);
+    .prepare('INSERT INTO operadores (nome, matricula, cpf, equipe_id, cargo, data_admissao) VALUES (?,?,?,?,?,?)')
+    .run(nome, matricula ?? null, cpf ?? null, equipe_id ?? null, cargo ?? null, data_admissao ?? null);
   res.status(201).json({ id: info.lastInsertRowid });
 });
 
 operadoresRouter.put('/:id', (req, res) => {
-  const { nome, matricula, equipe_id, cargo, data_admissao, ativo } = req.body ?? {};
-  db.prepare('UPDATE operadores SET nome=?, matricula=?, equipe_id=?, cargo=?, data_admissao=?, ativo=? WHERE id=?')
-    .run(nome, matricula ?? null, equipe_id ?? null, cargo ?? null, data_admissao ?? null, ativo ? 1 : 0, req.params.id);
+  const { nome, matricula, cpf, equipe_id, cargo, data_admissao, ativo } = req.body ?? {};
+  db.prepare('UPDATE operadores SET nome=?, matricula=?, cpf=?, equipe_id=?, cargo=?, data_admissao=?, ativo=? WHERE id=?')
+    .run(nome, matricula ?? null, cpf ?? null, equipe_id ?? null, cargo ?? null, data_admissao ?? null, ativo ? 1 : 0, req.params.id);
   res.json({ ok: true });
 });
 

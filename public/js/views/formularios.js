@@ -12,7 +12,7 @@ export async function formulariosView(el) {
     </div>
     <div class="its-card table-wrap">
       <table class="its-table">
-        <thead><tr><th>Formulário</th><th>Descrição</th><th>Critérios</th><th>Status</th><th></th></tr></thead>
+        <thead><tr><th>Formulário</th><th>Descrição</th><th>Critérios</th><th>Status</th><th>Ações</th></tr></thead>
         <tbody>
           ${forms.map((f) => `
             <tr>
