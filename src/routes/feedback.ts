@@ -6,7 +6,7 @@ export const feedbackRouter = Router();
 const soDigitos = (s: unknown) => String(s ?? '').replace(/\D/g, '');
 
 // Lista atendimentos monitorados para feedback (pendentes e realizados)
-feedbackRouter.get('/', (req, res) => {
+feedbackRouter.get('/', async (req, res) => {
   const { status_feedback, operador_id, equipe_id, nome, cpf, feedback_em } = req.query;
   const where: string[] = ["m.status != 'rascunho'"];
   const params: unknown[] = [];
@@ -16,9 +16,9 @@ feedbackRouter.get('/', (req, res) => {
   if (equipe_id) { where.push('o.equipe_id = ?'); params.push(equipe_id); }
   if (nome) { where.push('o.nome LIKE ?'); params.push('%' + String(nome) + '%'); }
   if (cpf) { where.push('o.cpf LIKE ?'); params.push('%' + String(cpf) + '%'); }
-  if (feedback_em) { where.push('date(m.data_feedback) = date(?)'); params.push(feedback_em); }
+  if (feedback_em) { where.push('m.data_feedback::date = ?::date'); params.push(feedback_em); }
 
-  const rows = db.prepare(`
+  const rows = await db.prepare(`
     SELECT m.id, m.protocolo, m.canal, m.data_atendimento, m.nota_final, m.falha_critica,
            m.feedback_aplicado, m.data_feedback, m.status_feedback, m.feedback_assinatura_cpf,
            o.nome AS operador_nome, o.cpf AS operador_cpf, e.nome AS equipe_nome,
@@ -42,13 +42,13 @@ interface MonAlvo {
 }
 
 // Aplica o feedback: o operador assina confirmando ciencia, validando o CPF
-feedbackRouter.post('/:id/aplicar', (req, res) => {
+feedbackRouter.post('/:id/aplicar', async (req, res) => {
   const { cpf, observacao, concordou, discordancia } = req.body ?? {};
-  const m = db.prepare(`
+  const m = (await db.prepare(`
     SELECT m.id, m.feedback_aplicado, o.cpf AS operador_cpf
     FROM monitorias m JOIN operadores o ON o.id = m.operador_id
     WHERE m.id = ?
-  `).get(req.params.id) as MonAlvo | undefined;
+  `).get(req.params.id)) as MonAlvo | undefined;
 
   if (!m) return res.status(404).json({ erro: 'Monitoria nao encontrada' });
   if (m.feedback_aplicado) return res.status(409).json({ erro: 'Feedback ja aplicado para esta monitoria' });
@@ -67,10 +67,10 @@ feedbackRouter.post('/:id/aplicar', (req, res) => {
     return res.status(400).json({ erro: 'Informe o motivo da discordancia' });
   }
 
-  const tx = db.transaction(() => {
-    db.prepare(`
+  await db.transaction(async (tx) => {
+    await tx.prepare(`
       UPDATE monitorias
-      SET feedback_aplicado = 1, data_feedback = datetime('now'),
+      SET feedback_aplicado = 1, data_feedback = to_char((now() AT TIME ZONE 'UTC'), 'YYYY-MM-DD HH24:MI:SS'),
           status_feedback = ?, feedback_assinatura_cpf = ?, feedback_observacao = ?,
           feedback_concordou = ?, feedback_discordancia = ?
       WHERE id = ?
@@ -82,12 +82,11 @@ feedbackRouter.post('/:id/aplicar', (req, res) => {
 
     // discordancia gera uma contestacao para analise do supervisor
     if (concordouVal === 0) {
-      db.prepare('INSERT INTO contestacoes (monitoria_id, motivo, status) VALUES (?,?,?)')
+      await tx.prepare('INSERT INTO contestacoes (monitoria_id, motivo, status) VALUES (?,?,?)')
         .run(req.params.id, 'Discordancia no feedback: ' + motivo, 'aberta');
-      db.prepare("UPDATE monitorias SET status='contestada' WHERE id=?").run(req.params.id);
+      await tx.prepare("UPDATE monitorias SET status='contestada' WHERE id=?").run(req.params.id);
     }
   });
-  tx();
 
   res.json({ ok: true, concordou: !!concordouVal, contestacao_aberta: concordouVal === 0 });
 });

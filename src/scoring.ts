@@ -28,13 +28,13 @@ const FATOR: Record<ValorResposta, number> = {
  *  - respostas "na" sao removidas do numerador e do denominador
  *  - se qualquer criterio FATAL for "nao_conforme", a nota final = 0 (falha critica)
  */
-export function calcularNota(formularioId: number, respostas: RespostaInput[]): {
+export async function calcularNota(formularioId: number, respostas: RespostaInput[]): Promise<{
   nota: number;
   falhaCritica: boolean;
-} {
-  const criterios = db
+}> {
+  const criterios = (await db
     .prepare('SELECT id, peso, fatal FROM criterios WHERE formulario_id = ?')
-    .all(formularioId) as CriterioRow[];
+    .all(formularioId)) as CriterioRow[];
   const mapa = new Map(criterios.map((c) => [c.id, c]));
 
   let obtidos = 0;

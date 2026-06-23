@@ -9,7 +9,7 @@ Módulo de Gestão de Qualidade do **iTS Customer Service**. Esta aplicação pe
 ### Backend
 - **Node.js**: Plataforma de execução JavaScript/TypeScript.
 - **Express**: Framework web minimalista e rápido.
-- **SQLite (`node:sqlite`)**: Banco de dados relacional leve com modo WAL habilitado e integridade de chaves estrangeiras.
+- **PostgreSQL (`pg`)**: Banco de dados relacional robusto (compatível com Supabase). As tabelas são criadas automaticamente no primeiro start. Suporta schema dedicado via `DB_SCHEMA`.
 - **TypeScript**: Tipagem estática para maior segurança e produtividade.
 - **JWT (JSON Web Token)**: Autenticação via cookies seguros (`httpOnly`, `sameSite: lax`).
 - **BcryptJS**: Hashing seguro de senhas.
@@ -24,7 +24,8 @@ Módulo de Gestão de Qualidade do **iTS Customer Service**. Esta aplicação pe
 ## 🚀 Como Executar o Projeto
 
 ### Pré-requisitos
-- Node.js (v22+ recomendado, devido à funcionalidade nativa do SQLite `node:sqlite`).
+- Node.js (v22+ recomendado).
+- Um PostgreSQL acessível (local ou Supabase). Defina `DATABASE_URL` no `.env`.
 - Gerenciador de pacotes npm.
 
 ### Instalação
@@ -33,12 +34,22 @@ Módulo de Gestão de Qualidade do **iTS Customer Service**. Esta aplicação pe
    npm install
    ```
 
-2. Execute o servidor de desenvolvimento com hot-reload automático:
+2. Configure o banco. Copie `.env.example` para `.env` e defina `DATABASE_URL`
+   (Postgres local ou Supabase). Ex. local:
+   ```bash
+   DATABASE_URL=postgresql://postgres:postgres@localhost:5432/its_qualidade
+   ```
+
+3. Execute em desenvolvimento (API com hot-reload + Vite no frontend):
    ```bash
    npm run dev
    ```
-   
-   O projeto estará disponível em [http://localhost:3000](http://localhost:3000).
+
+   - **Frontend (Vite dev):** [http://localhost:5173](http://localhost:5173) — use este no navegador.
+   - **API (Express):** http://localhost:3000 (o Vite faz proxy de `/api`).
+
+   As tabelas são criadas automaticamente e, em desenvolvimento, o banco é
+   populado com dados de demonstração.
 
 ## 🚀 Publicação em Produção
 
@@ -51,9 +62,11 @@ Módulo de Gestão de Qualidade do **iTS Customer Service**. Esta aplicação pe
    | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | sim* | Administrador inicial criado no primeiro start (*apenas se o banco ainda não tiver usuários). Senha mín. 8 caracteres. |
    | `PORT` | não | Porta HTTP (padrão `3000`). Em PaaS (ex.: Hostinger) é injetada automaticamente. |
    | `SEED_DEMO` | não | `true` para popular dados fictícios também em produção (não recomendado). |
-   | `DATA_DIR` | não | Caminho persistente para o banco SQLite e os uploads. **Defina em hospedagens que reconstroem a pasta do app a cada deploy** (ex.: Hostinger via GitHub), apontando para fora do projeto. Padrão: `./data`. |
+   | `DATABASE_URL` | sim | String de conexão do Postgres/Supabase. O app **não sobe** sem ela. |
+   | `DB_SCHEMA` | não | Schema dedicado (ex.: `its_qualidade`) para coexistir num Postgres compartilhado sem colidir com o `public`. Padrão: `public`. |
+   | `DATA_DIR` | não | Caminho persistente para os **uploads/anexos** (o banco é Postgres). **Defina em hospedagens que reconstroem a pasta do app a cada deploy** (ex.: Hostinger via GitHub). Padrão: `./data`. |
 
-   > **Versão do Node:** use **Node 24+** (recomendado) ou **22+**. O módulo nativo `node:sqlite` só existe a partir do Node 22 — não use 18/20. Os scripts já sobem o app **sem flags** (`node dist/server.js`), então funciona tanto via `npm start` quanto se a hospedagem iniciar o arquivo de entrada diretamente.
+   > **Versão do Node:** use **Node 24+** (recomendado) ou **22+** (não use 18/20). Os scripts sobem o app **sem flags** (`node dist/server.js`), então funciona tanto via `npm start` quanto se a hospedagem iniciar o arquivo de entrada diretamente.
    >
    > Para publicar na Hostinger (Web app Node.js), veja **[`DEPLOY-HOSTINGER.md`](./DEPLOY-HOSTINGER.md)**.
 
@@ -78,7 +91,9 @@ docker build -t its-qualidade .
 docker run -d -p 3000:3000 --env-file .env -v its_data:/app/data its-qualidade
 ```
 
-O banco SQLite e os uploads ficam em `/app/data` — monte um volume para persistência.
+Passe `DATABASE_URL` (e demais variáveis) via `--env-file .env`. Os **uploads**
+ficam em `/app/data` — monte um volume para persistência. O **banco** é o
+Postgres externo apontado por `DATABASE_URL`.
 
 ---
 
@@ -94,7 +109,7 @@ O banco SQLite e os uploads ficam em `/app/data` — monte um volume para persis
 
 ## 📦 Estrutura de Banco de Dados e Módulos
 
-O banco de dados relacional SQLite (`data/qualidade.db`) possui a seguinte estrutura:
+O banco de dados relacional PostgreSQL possui a seguinte estrutura:
 
 - `usuarios`: Conta dos monitores, supervisores e administradores de qualidade.
 - `equipes`: Cadastro das equipes de atendimento e seus supervisores.

@@ -1,3 +1,4 @@
+import '../styles/app.css';
 import { api, setToken } from './api.js';
 import { dashboardView } from './views/dashboard.js';
 import { monitoriasView } from './views/monitorias.js';

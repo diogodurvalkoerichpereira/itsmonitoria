@@ -1,10 +1,10 @@
 import { Router } from 'express';
-import { db } from '../db.js';
+import { db, type DbLike } from '../db.js';
 
 export const formulariosRouter = Router();
 
-formulariosRouter.get('/', (_req, res) => {
-  const rows = db.prepare(`
+formulariosRouter.get('/', async (_req, res) => {
+  const rows = await db.prepare(`
     SELECT f.*,
       (SELECT COUNT(*) FROM criterios c WHERE c.formulario_id = f.id) AS total_criterios
     FROM formularios f ORDER BY f.nome
@@ -12,44 +12,43 @@ formulariosRouter.get('/', (_req, res) => {
   res.json(rows);
 });
 
-formulariosRouter.get('/:id', (req, res) => {
-  const form = db.prepare('SELECT * FROM formularios WHERE id=?').get(req.params.id);
+formulariosRouter.get('/:id', async (req, res) => {
+  const form = await db.prepare('SELECT * FROM formularios WHERE id=?').get(req.params.id);
   if (!form) return res.status(404).json({ erro: 'Formulario nao encontrado' });
-  const criterios = db
+  const criterios = await db
     .prepare('SELECT * FROM criterios WHERE formulario_id=? ORDER BY ordem, id')
     .all(req.params.id);
   res.json({ ...form, criterios });
 });
 
-formulariosRouter.post('/', (req, res) => {
+formulariosRouter.post('/', async (req, res) => {
   const { nome, descricao, criterios } = req.body ?? {};
   if (!nome) return res.status(400).json({ erro: 'Nome obrigatorio' });
-  const tx = db.transaction(() => {
-    const info = db.prepare('INSERT INTO formularios (nome, descricao) VALUES (?,?)').run(nome, descricao ?? null);
-    const fid = info.lastInsertRowid as number;
-    inserirCriterios(fid, criterios);
-    return fid;
+  const fid = await db.transaction(async (tx) => {
+    const info = await tx.prepare('INSERT INTO formularios (nome, descricao) VALUES (?,?)').run(nome, descricao ?? null);
+    const novoId = info.lastInsertRowid as number;
+    await inserirCriterios(tx, novoId, criterios);
+    return novoId;
   });
-  res.status(201).json({ id: tx() });
+  res.status(201).json({ id: fid });
 });
 
-formulariosRouter.put('/:id', (req, res) => {
+formulariosRouter.put('/:id', async (req, res) => {
   const { nome, descricao, ativo, criterios } = req.body ?? {};
   const fid = Number(req.params.id);
-  const tx = db.transaction(() => {
-    db.prepare('UPDATE formularios SET nome=?, descricao=?, ativo=? WHERE id=?')
+  await db.transaction(async (tx) => {
+    await tx.prepare('UPDATE formularios SET nome=?, descricao=?, ativo=? WHERE id=?')
       .run(nome, descricao ?? null, ativo ? 1 : 0, fid);
     if (Array.isArray(criterios)) {
-      db.prepare('DELETE FROM criterios WHERE formulario_id=?').run(fid);
-      inserirCriterios(fid, criterios);
+      await tx.prepare('DELETE FROM criterios WHERE formulario_id=?').run(fid);
+      await inserirCriterios(tx, fid, criterios);
     }
   });
-  tx();
   res.json({ ok: true });
 });
 
-formulariosRouter.delete('/:id', (req, res) => {
-  db.prepare('DELETE FROM formularios WHERE id=?').run(req.params.id);
+formulariosRouter.delete('/:id', async (req, res) => {
+  await db.prepare('DELETE FROM formularios WHERE id=?').run(req.params.id);
   res.json({ ok: true });
 });
 
@@ -60,12 +59,13 @@ interface CriterioInput {
   fatal?: boolean;
 }
 
-function inserirCriterios(formularioId: number, criterios: unknown): void {
+async function inserirCriterios(tx: DbLike, formularioId: number, criterios: unknown): Promise<void> {
   if (!Array.isArray(criterios)) return;
-  const stmt = db.prepare(
+  const stmt = tx.prepare(
     'INSERT INTO criterios (formulario_id, categoria, descricao, peso, fatal, ordem) VALUES (?,?,?,?,?,?)'
   );
-  (criterios as CriterioInput[]).forEach((c, i) => {
-    stmt.run(formularioId, c.categoria ?? 'Geral', c.descricao, c.peso ?? 1, c.fatal ? 1 : 0, i);
-  });
+  let i = 0;
+  for (const c of criterios as CriterioInput[]) {
+    await stmt.run(formularioId, c.categoria ?? 'Geral', c.descricao, c.peso ?? 1, c.fatal ? 1 : 0, i++);
+  }
 }

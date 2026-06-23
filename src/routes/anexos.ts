@@ -42,28 +42,28 @@ function comUpload(req: import('express').Request, res: import('express').Respon
   });
 }
 
-anexosRouter.post('/monitorias/:id/anexos', comUpload, (req, res) => {
+anexosRouter.post('/monitorias/:id/anexos', comUpload, async (req, res) => {
   const mid = Number(req.params.id);
-  const mon = db.prepare('SELECT id FROM monitorias WHERE id=?').get(mid);
+  const mon = await db.prepare('SELECT id FROM monitorias WHERE id=?').get(mid);
   if (!mon) return res.status(404).json({ erro: 'Monitoria nao encontrada' });
   const files = (req.files as Express.Multer.File[]) || [];
   const ins = db.prepare('INSERT INTO anexos (monitoria_id, nome_original, nome_arquivo, mime, tamanho) VALUES (?,?,?,?,?)');
   for (const f of files) {
     // nomes vem em latin1 do multipart; normaliza para utf8
     const nome = Buffer.from(f.originalname, 'latin1').toString('utf8');
-    ins.run(mid, nome, f.filename, f.mimetype, f.size);
+    await ins.run(mid, nome, f.filename, f.mimetype, f.size);
   }
   res.status(201).json({ enviados: files.length });
 });
 
-anexosRouter.get('/monitorias/:id/anexos', (req, res) => {
-  const rows = db.prepare('SELECT id, nome_original, mime, tamanho, criado_em FROM anexos WHERE monitoria_id=? ORDER BY id')
+anexosRouter.get('/monitorias/:id/anexos', async (req, res) => {
+  const rows = await db.prepare('SELECT id, nome_original, mime, tamanho, criado_em FROM anexos WHERE monitoria_id=? ORDER BY id')
     .all(req.params.id);
   res.json(rows);
 });
 
-anexosRouter.get('/anexos/:id/download', (req, res) => {
-  const a = db.prepare('SELECT * FROM anexos WHERE id=?').get(req.params.id) as AnexoRow | undefined;
+anexosRouter.get('/anexos/:id/download', async (req, res) => {
+  const a = (await db.prepare('SELECT * FROM anexos WHERE id=?').get(req.params.id)) as AnexoRow | undefined;
   if (!a) return res.status(404).json({ erro: 'Anexo nao encontrado' });
   const filePath = join(uploadDir, a.nome_arquivo);
   if (!existsSync(filePath)) return res.status(404).json({ erro: 'Arquivo nao localizado no servidor' });
@@ -73,10 +73,10 @@ anexosRouter.get('/anexos/:id/download', (req, res) => {
   createReadStream(filePath).pipe(res);
 });
 
-anexosRouter.delete('/anexos/:id', (req, res) => {
-  const a = db.prepare('SELECT * FROM anexos WHERE id=?').get(req.params.id) as AnexoRow | undefined;
+anexosRouter.delete('/anexos/:id', async (req, res) => {
+  const a = (await db.prepare('SELECT * FROM anexos WHERE id=?').get(req.params.id)) as AnexoRow | undefined;
   if (!a) return res.status(404).json({ erro: 'Anexo nao encontrado' });
   try { const fp = join(uploadDir, a.nome_arquivo); if (existsSync(fp)) unlinkSync(fp); } catch { /* ignora */ }
-  db.prepare('DELETE FROM anexos WHERE id=?').run(req.params.id);
+  await db.prepare('DELETE FROM anexos WHERE id=?').run(req.params.id);
   res.json({ ok: true });
 });

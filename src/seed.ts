@@ -5,12 +5,12 @@ import { calcularNota, type ValorResposta } from './scoring.js';
 const IS_PROD = process.env.NODE_ENV === 'production';
 const SEED_DEMO = process.env.SEED_DEMO === 'true';
 
-export function seed(): void {
+export async function seed(): Promise<void> {
   // Dados ficticios so entram em desenvolvimento ou quando SEED_DEMO=true.
   // Em producao um banco populado com dados de demo polui o ambiente real.
   if (IS_PROD && !SEED_DEMO) return;
 
-  const jaTem = (db.prepare('SELECT COUNT(*) AS n FROM usuarios').get() as { n: number }).n > 0;
+  const jaTem = ((await db.prepare('SELECT COUNT(*) AS n FROM usuarios').get()) as { n: number }).n > 0;
   if (jaTem) return;
 
   console.log('  Populando dados de demonstracao...');
@@ -23,8 +23,10 @@ export function seed(): void {
     ['Juliana Alves', 'juliana@its.com.br', 'mon123', 'monitor'],
   ];
   const insUser = db.prepare('INSERT INTO usuarios (nome, email, senha_hash, perfil) VALUES (?,?,?,?)');
-  const userIds = usuarios.map((u) =>
-    insUser.run(u[0], u[1], bcrypt.hashSync(u[2], 8), u[3]).lastInsertRowid as number
+  const userIds = await Promise.all(
+    usuarios.map(async (u) =>
+      (await insUser.run(u[0], u[1], bcrypt.hashSync(u[2], 8), u[3])).lastInsertRowid as number
+    )
   );
 
   // ---- Equipes ----
@@ -35,10 +37,14 @@ export function seed(): void {
     ['Vendas Ativo', 'Bruno Carvalho'],
   ];
   const insEq = db.prepare('INSERT INTO equipes (nome, supervisor) VALUES (?,?)');
-  const equipeIds = equipes.map((e) => insEq.run(e[0], e[1]).lastInsertRowid as number);
+  const equipeIds = await Promise.all(
+    equipes.map(async (e) => (await insEq.run(e[0], e[1])).lastInsertRowid as number)
+  );
 
   // ---- Membros das equipes (supervisores, monitores, gerentes) ----
-  const insMembro = db.prepare('INSERT OR IGNORE INTO equipe_membros (equipe_id, nome, papel) VALUES (?,?,?)');
+  const insMembro = db.prepare(
+    'INSERT INTO equipe_membros (equipe_id, nome, papel) VALUES (?,?,?) ON CONFLICT DO NOTHING'
+  );
   const equipeMembros: Record<number, { supervisores: string[]; monitores: string[]; gerentes: string[] }> = {
     [equipeIds[0]]: {
       supervisores: ['Carla Monteiro', 'Fernanda Ribeiro'],
@@ -62,9 +68,9 @@ export function seed(): void {
     },
   };
   for (const [eqId, roles] of Object.entries(equipeMembros)) {
-    for (const nome of roles.supervisores) insMembro.run(Number(eqId), nome, 'supervisor');
-    for (const nome of roles.monitores)    insMembro.run(Number(eqId), nome, 'monitor');
-    for (const nome of roles.gerentes)     insMembro.run(Number(eqId), nome, 'gerente');
+    for (const nome of roles.supervisores) await insMembro.run(Number(eqId), nome, 'supervisor');
+    for (const nome of roles.monitores)    await insMembro.run(Number(eqId), nome, 'monitor');
+    for (const nome of roles.gerentes)     await insMembro.run(Number(eqId), nome, 'gerente');
   }
 
   // ---- Operadores ----
@@ -74,19 +80,21 @@ export function seed(): void {
     'Vanessa Lima', 'Rodrigo Pinto', 'Aline Castro', 'Diego Ramos', 'Patricia Melo', 'Bruno Teixeira',
   ];
   const insOp = db.prepare('INSERT INTO operadores (nome, matricula, cpf, equipe_id, cargo) VALUES (?,?,?,?,?)');
-  const operadorIds = nomes.map((nome, i) =>
-    insOp.run(
-      nome,
-      `OP${String(1001 + i)}`,
-      `123.456.789-${String(10 + i)}`,
-      equipeIds[i % equipeIds.length],
-      'Operador I'
-    ).lastInsertRowid as number
+  const operadorIds = await Promise.all(
+    nomes.map(async (nome, i) =>
+      (await insOp.run(
+        nome,
+        `OP${String(1001 + i)}`,
+        `123.456.789-${String(10 + i)}`,
+        equipeIds[i % equipeIds.length],
+        'Operador I'
+      )).lastInsertRowid as number
+    )
   );
 
   // ---- Formulario de monitoria padrao ----
-  const formId = db.prepare('INSERT INTO formularios (nome, descricao) VALUES (?,?)')
-    .run('Monitoria Padrao - Atendimento', 'Avaliacao de qualidade de atendimento ao cliente').lastInsertRowid as number;
+  const formId = (await db.prepare('INSERT INTO formularios (nome, descricao) VALUES (?,?)')
+    .run('Monitoria Padrao - Atendimento', 'Avaliacao de qualidade de atendimento ao cliente')).lastInsertRowid as number;
 
   const criterios: Array<[string, string, number, number]> = [
     // categoria, descricao, peso, fatal
@@ -101,9 +109,11 @@ export function seed(): void {
     ['Encerramento', 'Encerramento cordial', 5, 0],
   ];
   const insCrit = db.prepare('INSERT INTO criterios (formulario_id, categoria, descricao, peso, fatal, ordem) VALUES (?,?,?,?,?,?)');
-  const criterioIds = criterios.map((c, i) =>
-    insCrit.run(formId, c[0], c[1], c[2], c[3], i).lastInsertRowid as number
-  );
+  const criterioIds: number[] = [];
+  for (let i = 0; i < criterios.length; i++) {
+    const c = criterios[i];
+    criterioIds.push((await insCrit.run(formId, c[0], c[1], c[2], c[3], i)).lastInsertRowid as number);
+  }
 
   // ---- Monitorias dos ultimos 6 meses ----
   const canais = ['Telefone', 'Chat', 'WhatsApp', 'Email'];
@@ -143,15 +153,15 @@ export function seed(): void {
         return { criterio_id: cid, valor };
       });
 
-      const { nota, falhaCritica } = calcularNota(formId, respostas);
-      
+      const { nota, falhaCritica } = await calcularNota(formId, respostas);
+
       const feedbackAplicado = Math.random() > 0.3 ? 1 : 0;
       const statusFeedback = feedbackAplicado ? 'Realizado' : 'Pendente';
       const dataFeedback = feedbackAplicado ? iso : null;
       const sla = nota >= 80 ? 'No Prazo' : 'Tratativa Necessária';
       const detalheSla = nota >= 80 ? 'SLA de qualidade atingido.' : 'Abaixo da meta de 80%. Necessário plano de ação.';
 
-      const mid = insMon.run(
+      const mid = (await insMon.run(
         formId, operadorId, monitorId, iso, pick(canais),
         `PROT-${++protocolo}`, nota, falhaCritica ? 1 : 0, 'concluida',
         falhaCritica ? 'Falha critica identificada - reciclagem necessaria' : null,
@@ -167,39 +177,40 @@ export function seed(): void {
         sla,
         detalheSla,
         iso + ' 10:00:00'
-      ).lastInsertRowid as number;
+      )).lastInsertRowid as number;
 
       for (const resp of respostas) {
-        insResp.run(mid, resp.criterio_id, resp.valor, null);
+        await insResp.run(mid, resp.criterio_id, resp.valor, null);
       }
     }
   }
 
   // ---- Algumas contestacoes ----
-  const monitoriasBaixas = db.prepare(
+  const monitoriasBaixas = (await db.prepare(
     "SELECT id FROM monitorias WHERE nota_final < 70 ORDER BY criado_em DESC LIMIT 6"
-  ).all() as Array<{ id: number }>;
+  ).all()) as Array<{ id: number }>;
   const insCont = db.prepare('INSERT INTO contestacoes (monitoria_id, motivo, status) VALUES (?,?,?)');
   const motivos = [
     'Cliente confirmou que a informacao prestada estava correta.',
     'O sistema estava instavel no momento, impossibilitando o registro.',
     'A sondagem foi feita, porem nao ficou audivel na gravacao.',
   ];
-  monitoriasBaixas.forEach((m, i) => {
+  for (let i = 0; i < monitoriasBaixas.length; i++) {
+    const m = monitoriasBaixas[i];
     const status = i < 2 ? 'aberta' : i < 4 ? 'em_analise' : 'indeferida';
-    insCont.run(m.id, pick(motivos), status);
-    if (status !== 'indeferida') db.prepare("UPDATE monitorias SET status='contestada' WHERE id=?").run(m.id);
-  });
+    await insCont.run(m.id, pick(motivos), status);
+    if (status !== 'indeferida') await db.prepare("UPDATE monitorias SET status='contestada' WHERE id=?").run(m.id);
+  }
 
   // ---- Calibracao exemplo ----
-  const calId = db.prepare(
+  const calId = (await db.prepare(
     'INSERT INTO calibracoes (titulo, formulario_id, operador_id, protocolo, data, status) VALUES (?,?,?,?,?,?)'
-  ).run('Calibracao Mensal - Junho/2026', formId, operadorIds[0], 'PROT-50001', '2026-06-15', 'aberta').lastInsertRowid as number;
+  ).run('Calibracao Mensal - Junho/2026', formId, operadorIds[0], 'PROT-50001', '2026-06-15', 'aberta')).lastInsertRowid as number;
   const notasCal = [88, 92, 85, 90];
-  userIds.forEach((uid, i) => {
-    db.prepare('INSERT INTO calibracao_notas (calibracao_id, monitor_id, nota) VALUES (?,?,?)')
-      .run(calId, uid, notasCal[i]);
-  });
+  for (let i = 0; i < userIds.length; i++) {
+    await db.prepare('INSERT INTO calibracao_notas (calibracao_id, monitor_id, nota) VALUES (?,?,?)')
+      .run(calId, userIds[i], notasCal[i]);
+  }
 
   console.log('  Dados criados com sucesso.');
 }
@@ -213,9 +224,9 @@ export function seed(): void {
  *   Faz apenas o bootstrap de um unico administrador a partir de
  *   ADMIN_EMAIL/ADMIN_PASSWORD, e somente se ainda nao existir nenhum usuario.
  */
-export function garantirUsuariosBase(): void {
+export async function garantirUsuariosBase(): Promise<void> {
   if (IS_PROD && !SEED_DEMO) {
-    bootstrapAdmin();
+    await bootstrapAdmin();
     return;
   }
 
@@ -226,15 +237,17 @@ export function garantirUsuariosBase(): void {
     ['Carla Monteiro', 'carla@its.com.br', 'mon123', 'supervisor'],
     ['Rafael Souza', 'rafael@its.com.br', 'mon123', 'monitor'],
   ];
-  const ins = db.prepare('INSERT OR IGNORE INTO usuarios (nome, email, senha_hash, perfil) VALUES (?,?,?,?)');
+  const ins = db.prepare(
+    'INSERT INTO usuarios (nome, email, senha_hash, perfil) VALUES (?,?,?,?) ON CONFLICT DO NOTHING'
+  );
   for (const [nome, email, senha, perfil] of base) {
-    ins.run(nome, email, bcrypt.hashSync(senha, 8), perfil);
+    await ins.run(nome, email, bcrypt.hashSync(senha, 8), perfil);
   }
 }
 
 /** Cria o administrador inicial em producao a partir de variaveis de ambiente. */
-function bootstrapAdmin(): void {
-  const jaTem = (db.prepare('SELECT COUNT(*) AS n FROM usuarios').get() as { n: number }).n > 0;
+async function bootstrapAdmin(): Promise<void> {
+  const jaTem = ((await db.prepare('SELECT COUNT(*) AS n FROM usuarios').get()) as { n: number }).n > 0;
   if (jaTem) return;
 
   const email = process.env.ADMIN_EMAIL?.toLowerCase().trim();
@@ -253,7 +266,7 @@ function bootstrapAdmin(): void {
     return;
   }
 
-  db.prepare('INSERT INTO usuarios (nome, email, senha_hash, perfil) VALUES (?,?,?,?)')
+  await db.prepare('INSERT INTO usuarios (nome, email, senha_hash, perfil) VALUES (?,?,?,?)')
     .run(nome, email, bcrypt.hashSync(senha, 10), 'admin');
   console.log(`[seed] Administrador inicial criado: ${email}`);
 }

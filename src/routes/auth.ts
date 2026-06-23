@@ -37,7 +37,7 @@ interface UsuarioRow {
   ativo: number;
 }
 
-authRouter.post('/login', (req, res) => {
+authRouter.post('/login', async (req, res) => {
   const { email, senha } = req.body ?? {};
   if (!email || !senha) {
     return res.status(400).json({ erro: 'Informe email e senha' });
@@ -49,9 +49,9 @@ authRouter.post('/login', (req, res) => {
     return res.status(429).json({ erro: 'Muitas tentativas. Tente novamente em alguns minutos.' });
   }
 
-  const usuario = db
+  const usuario = (await db
     .prepare('SELECT * FROM usuarios WHERE email = ? AND ativo = 1')
-    .get(emailNorm) as UsuarioRow | undefined;
+    .get(emailNorm)) as UsuarioRow | undefined;
 
   if (!usuario || !bcrypt.compareSync(String(senha), usuario.senha_hash)) {
     return res.status(401).json({ erro: 'Credenciais invalidas' });
