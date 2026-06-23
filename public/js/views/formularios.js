@@ -44,7 +44,9 @@ export async function formulariosView(el) {
     const body = h(`<div>
       <div class="form-group"><label class="its-label">Nome</label><input class="its-input" id="f-nome" value="${esc(form.nome)}"></div>
       <div class="form-group"><label class="its-label">Descrição</label><input class="its-input" id="f-desc" value="${esc(form.descricao || '')}"></div>
+      <div id="f-erro" class="its-alert alert-error hidden"></div>
       <div class="cat-head">Critérios de avaliação</div>
+      <div style="font-size:.74rem;color:var(--its-muted);margin-bottom:6px">Preencha a <b>descrição</b> de cada critério. Linhas sem descrição são ignoradas.</div>
       <div id="crit-list"></div>
       <button type="button" class="its-btn its-btn-outline its-btn-sm" id="add-crit" style="margin-top:8px">+ Adicionar critério</button>
     </div>`);
@@ -62,7 +64,10 @@ export async function formulariosView(el) {
 
     const salvar = h(`<button class="its-btn its-btn-primary">Salvar</button>`);
     const { close } = openModal({ title: id ? 'Editar formulário' : 'Novo formulário', body, footer: salvar, lg: true });
+    const erroBox = body.querySelector('#f-erro');
+    const mostrarErro = (msg) => { erroBox.textContent = msg; erroBox.classList.remove('hidden'); };
     salvar.onclick = async () => {
+      erroBox.classList.add('hidden');
       const criterios = [...list.querySelectorAll('.crit-row')].map((r) => ({
         descricao: r.querySelector('.crit-desc').value.trim(),
         categoria: r.querySelector('.crit-cat').value.trim() || 'Geral',
@@ -74,13 +79,17 @@ export async function formulariosView(el) {
         descricao: body.querySelector('#f-desc').value.trim(),
         ativo: 1, criterios,
       };
-      if (!payload.nome) return toast('Informe o nome', true);
-      if (!criterios.length) return toast('Adicione ao menos um critério', true);
+      if (!payload.nome) return mostrarErro('Informe o nome do formulário.');
+      if (!criterios.length) return mostrarErro('Adicione ao menos um critério com descrição preenchida.');
+      salvar.disabled = true;
       try {
         if (id) await api.put('/formularios/' + id, payload);
         else await api.post('/formularios', payload);
         close(); toast('Formulário salvo'); formulariosView(el);
-      } catch (e) { toast(e.message, true); }
+      } catch (e) {
+        salvar.disabled = false;
+        mostrarErro('Erro ao salvar: ' + e.message);
+      }
     };
   };
 

@@ -3,8 +3,8 @@ import cookieParser from 'cookie-parser';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { initSchema } from './db.js';
-import { seed } from './seed.js';
-import { autenticar } from './auth.js';
+import { seed, garantirUsuariosBase } from './seed.js';
+import { autenticar, exigirNivel, exigirNivelEscrita, NIVEIS } from './auth.js';
 import { authRouter } from './routes/auth.js';
 import { equipesRouter } from './routes/equipes.js';
 import { operadoresRouter } from './routes/operadores.js';
@@ -13,11 +13,15 @@ import { monitoriasRouter } from './routes/monitorias.js';
 import { contestacoesRouter } from './routes/contestacoes.js';
 import { calibracoesRouter } from './routes/calibracoes.js';
 import { dashboardRouter } from './routes/dashboard.js';
+import { usuariosRouter } from './routes/usuarios.js';
+import { feedbackRouter } from './routes/feedback.js';
+import { anexosRouter } from './routes/anexos.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 initSchema();
 seed();
+garantirUsuariosBase();
 
 const app = express();
 app.use(express.json());
@@ -28,12 +32,15 @@ app.use('/api/auth', authRouter);
 
 // API protegida
 app.use('/api/dashboard', autenticar, dashboardRouter);
-app.use('/api/equipes', autenticar, equipesRouter);
-app.use('/api/operadores', autenticar, operadoresRouter);
-app.use('/api/formularios', autenticar, formulariosRouter);
+app.use('/api/equipes', autenticar, exigirNivelEscrita(NIVEIS.coordenador), equipesRouter);
+app.use('/api/operadores', autenticar, exigirNivelEscrita(NIVEIS.supervisor), operadoresRouter);
+app.use('/api/formularios', autenticar, exigirNivelEscrita(NIVEIS.coordenador), formulariosRouter);
 app.use('/api/monitorias', autenticar, monitoriasRouter);
+app.use('/api/feedback', autenticar, feedbackRouter);
 app.use('/api/contestacoes', autenticar, contestacoesRouter);
 app.use('/api/calibracoes', autenticar, calibracoesRouter);
+app.use('/api/usuarios', autenticar, exigirNivel(NIVEIS.gerente), usuariosRouter);
+app.use('/api', autenticar, anexosRouter);
 
 // Frontend estatico
 const publicDir = join(__dirname, '..', 'public');

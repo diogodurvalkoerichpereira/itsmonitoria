@@ -163,6 +163,16 @@ export function initSchema(): void {
     nota          REAL NOT NULL,
     comentario    TEXT
   );
+
+  CREATE TABLE IF NOT EXISTS anexos (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    monitoria_id  INTEGER NOT NULL REFERENCES monitorias(id) ON DELETE CASCADE,
+    nome_original TEXT NOT NULL,
+    nome_arquivo  TEXT NOT NULL,
+    mime          TEXT,
+    tamanho       INTEGER,
+    criado_em     TEXT NOT NULL DEFAULT (datetime('now'))
+  );
   `);
 
   // Migrations seguras para bancos de dados ja existentes
@@ -185,4 +195,10 @@ export function initSchema(): void {
   addColumn('monitorias', 'status_feedback', "TEXT DEFAULT 'Pendente'");
   addColumn('monitorias', 'sla', 'TEXT');
   addColumn('monitorias', 'detalhe_sla', 'TEXT');
+  // Feedback assinado pelo operador (aceite via CPF apos apresentacao)
+  addColumn('monitorias', 'feedback_assinatura_cpf', 'TEXT');
+  addColumn('monitorias', 'feedback_observacao', 'TEXT');
+  // Posicionamento do operador no feedback (concorda x discorda)
+  addColumn('monitorias', 'feedback_concordou', 'INTEGER');
+  addColumn('monitorias', 'feedback_discordancia', 'TEXT');
 }

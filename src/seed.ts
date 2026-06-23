@@ -196,3 +196,22 @@ export function seed(): void {
 
   console.log('  Dados criados com sucesso.');
 }
+
+/**
+ * Garante um usuario base para cada perfil (idempotente). Roda sempre no
+ * startup, inclusive em bancos ja existentes (INSERT OR IGNORE pelo e-mail
+ * unico), para que os perfis de demonstracao estejam disponiveis.
+ */
+export function garantirUsuariosBase(): void {
+  const base: Array<[string, string, string, string]> = [
+    ['Administrador ITS', 'admin@its.com.br', 'admin123', 'admin'],
+    ['Marcos Lima', 'gerente@its.com.br', 'ger123', 'gerente'],
+    ['Patricia Gomes', 'coordenador@its.com.br', 'coord123', 'coordenador'],
+    ['Carla Monteiro', 'carla@its.com.br', 'mon123', 'supervisor'],
+    ['Rafael Souza', 'rafael@its.com.br', 'mon123', 'monitor'],
+  ];
+  const ins = db.prepare('INSERT OR IGNORE INTO usuarios (nome, email, senha_hash, perfil) VALUES (?,?,?,?)');
+  for (const [nome, email, senha, perfil] of base) {
+    ins.run(nome, email, bcrypt.hashSync(senha, 8), perfil);
+  }
+}

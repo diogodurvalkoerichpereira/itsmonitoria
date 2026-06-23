@@ -5,7 +5,7 @@ import { calcularNota, type RespostaInput } from '../scoring.js';
 export const monitoriasRouter = Router();
 
 monitoriasRouter.get('/', (req, res) => {
-  const { operador_id, equipe_id, canal, status, de, ate } = req.query;
+  const { operador_id, equipe_id, canal, status, de, ate, cpf } = req.query;
   const where: string[] = [];
   const params: unknown[] = [];
   if (operador_id) { where.push('m.operador_id = ?'); params.push(operador_id); }
@@ -14,6 +14,7 @@ monitoriasRouter.get('/', (req, res) => {
   if (status) { where.push('m.status = ?'); params.push(status); }
   if (de) { where.push('date(m.data_atendimento) >= date(?)'); params.push(de); }
   if (ate) { where.push('date(m.data_atendimento) <= date(?)'); params.push(ate); }
+  if (cpf) { where.push('o.cpf LIKE ?'); params.push('%' + String(cpf) + '%'); }
   const clause = where.length ? 'WHERE ' + where.join(' AND ') : '';
 
   const rows = db.prepare(`

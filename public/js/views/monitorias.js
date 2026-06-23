@@ -8,9 +8,47 @@ const VALORES = [
   ['na', 'N/A', 'sel-na', 'N/A'],
 ];
 
+function iconeAnexo(mime = '') {
+  if (/^audio\//.test(mime)) return '🎵';
+  if (/^image\//.test(mime)) return '🖼️';
+  if (/^video\//.test(mime)) return '🎬';
+  if (/pdf/.test(mime)) return '📕';
+  return '📄';
+}
+
+// renderiza a lista de anexos de uma monitoria (com player de audio inline)
+async function carregarAnexos(container, monitoriaId, comExcluir) {
+  let lista = [];
+  try { lista = await api.get('/monitorias/' + monitoriaId + '/anexos'); }
+  catch { container.innerHTML = '<div style="font-size:.8rem;color:var(--its-danger)">Falha ao carregar anexos.</div>'; return; }
+  if (!lista.length) { container.innerHTML = '<div style="font-size:.8rem;color:var(--its-muted)">Nenhum anexo.</div>'; return; }
+  container.innerHTML = lista.map((a) => {
+    const url = '/api/anexos/' + a.id + '/download';
+    const mime = a.mime || '';
+    const mb = (a.tamanho / 1024 / 1024).toFixed(2);
+    return `<div class="its-card" style="margin-bottom:8px;padding:10px 12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <div>${iconeAnexo(mime)} <a href="${url}?download=1" target="_blank">${esc(a.nome_original)}</a>
+          <span style="font-size:.72rem;color:var(--its-muted)">(${mb} MB)</span></div>
+        ${comExcluir ? `<button class="its-btn its-btn-danger its-btn-sm" data-del-anexo="${a.id}">Excluir</button>` : ''}
+      </div>
+      ${/^audio\//.test(mime) ? `<audio controls preload="none" src="${url}" style="width:100%;margin-top:8px"></audio>` : ''}
+      ${/^video\//.test(mime) ? `<video controls preload="none" src="${url}" style="width:100%;max-height:240px;margin-top:8px"></video>` : ''}
+      ${/^image\//.test(mime) ? `<img src="${url}" style="max-width:100%;max-height:240px;margin-top:8px;border-radius:6px">` : ''}
+    </div>`;
+  }).join('');
+  if (comExcluir) {
+    container.querySelectorAll('[data-del-anexo]').forEach((b) => b.onclick = async () => {
+      if (!confirm('Excluir este anexo?')) return;
+      try { await api.delete('/anexos/' + b.dataset.delAnexo); carregarAnexos(container, monitoriaId, comExcluir); }
+      catch (e) { toast(e.message, true); }
+    });
+  }
+}
+
 export async function monitoriasView(el) {
   el.innerHTML = '<div class="empty">Carregando...</div>';
-  const [equipes] = await Promise.all([api.get('/equipes')]);
+  const [equipes, operadores] = await Promise.all([api.get('/equipes'), api.get('/operadores')]);
 
   el.innerHTML = `
     <div class="page-head">
@@ -21,6 +59,11 @@ export async function monitoriasView(el) {
       <div class="form-group"><label class="its-label">Equipe</label>
         <select class="its-select" id="f-equipe"><option value="">Todas</option>
           ${equipes.map((e) => `<option value="${e.id}">${esc(e.nome)}</option>`).join('')}</select></div>
+      <div class="form-group"><label class="its-label">Operador</label>
+        <select class="its-select" id="f-operador"><option value="">Todos</option>
+          ${operadores.map((o) => `<option value="${o.id}">${esc(o.nome)}${o.matricula ? ' · ' + esc(o.matricula) : ''}</option>`).join('')}</select></div>
+      <div class="form-group"><label class="its-label">CPF do operador</label>
+        <input class="its-input" id="f-cpf" placeholder="000.000.000-00" style="width:160px"></div>
       <div class="form-group"><label class="its-label">Canal</label>
         <select class="its-select" id="f-canal"><option value="">Todos</option>
           ${['Telefone','Chat','WhatsApp','Email'].map((c) => `<option>${c}</option>`).join('')}</select></div>
@@ -34,9 +77,13 @@ export async function monitoriasView(el) {
   async function carregar() {
     const q = new URLSearchParams();
     const eq = el.querySelector('#f-equipe').value;
+    const op = el.querySelector('#f-operador').value;
+    const cpf = el.querySelector('#f-cpf').value.trim();
     const ca = el.querySelector('#f-canal').value;
     const st = el.querySelector('#f-status').value;
     if (eq) q.set('equipe_id', eq);
+    if (op) q.set('operador_id', op);
+    if (cpf) q.set('cpf', cpf);
     if (ca) q.set('canal', ca);
     if (st) q.set('status', st);
     const mons = await api.get('/monitorias?' + q.toString());
@@ -184,6 +231,15 @@ async function abrirMonitoria(id = null, reload) {
     <div class="cat-head">Avaliação dos critérios</div>
     <div id="crit-area"><div class="empty">Selecione um formulário</div></div>
     <div class="form-group" style="margin-top:14px"><label class="its-label">Observações / feedback ao operador</label><textarea class="its-input" id="m-obs" rows="2">${esc(m?.observacoes || '')}</textarea></div>
+
+    <div class="cat-head" style="margin-top:14px">Anexos (documentos e mídia)</div>
+    <div class="form-group">
+      <input type="file" id="m-anexos" multiple class="its-input"
+        accept="audio/*,video/*,image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt">
+      <div style="font-size:.74rem;color:var(--its-muted);margin-top:4px">Áudio, documentos, imagens ou vídeo. Até 10 arquivos, 50&nbsp;MB cada.</div>
+    </div>
+    <div id="m-anexos-exist"></div>
+
     <div class="its-alert alert-info" id="m-preview" style="margin-top:8px">Nota parcial: <b id="m-nota">—</b></div>
   </div>`);
 
@@ -252,6 +308,10 @@ async function abrirMonitoria(id = null, reload) {
 
   const salvar = h(`<button class="its-btn its-btn-primary">${m ? 'Salvar alterações' : 'Salvar monitoria'}</button>`);
   const { close } = openModal({ title: m ? 'Editar monitoria' : 'Nova monitoria', body, footer: salvar, lg: true });
+
+  // em modo edicao, mostra os anexos ja existentes (com opcao de excluir)
+  if (m) carregarAnexos(body.querySelector('#m-anexos-exist'), m.id, true);
+
   salvar.onclick = async () => {
     const payload = {
       formulario_id: Number(body.querySelector('#m-form').value),
@@ -273,17 +333,31 @@ async function abrirMonitoria(id = null, reload) {
       detalhe_sla: body.querySelector('#m-sla-det').value.trim(),
       respostas: [...respostas.entries()].map(([criterio_id, r]) => ({ criterio_id, valor: r.valor })),
     };
+    salvar.disabled = true;
     try {
+      let monitoriaId;
+      let msg;
       if (m) {
         await api.put('/monitorias/' + m.id, payload);
-        toast('Monitoria atualizada');
+        monitoriaId = m.id;
+        msg = 'Monitoria atualizada';
       } else {
         const res = await api.post('/monitorias', payload);
-        toast(`Monitoria salva · nota ${res.nota_final.toFixed(1)}`);
+        monitoriaId = res.id;
+        msg = `Monitoria salva · nota ${res.nota_final.toFixed(1)}`;
       }
+      // envia os anexos selecionados (se houver)
+      const fileInput = body.querySelector('#m-anexos');
+      if (fileInput && fileInput.files.length) {
+        const fd = new FormData();
+        for (const f of fileInput.files) fd.append('arquivos', f);
+        await api.upload('/monitorias/' + monitoriaId + '/anexos', fd);
+        msg += ` · ${fileInput.files.length} anexo(s)`;
+      }
+      toast(msg);
       close();
       reload();
-    } catch (e) { toast(e.message, true); }
+    } catch (e) { salvar.disabled = false; toast(e.message, true); }
   };
 }
 
@@ -329,12 +403,16 @@ async function detalhe(id, reload) {
     
     ${m.contestacoes?.length ? `<div class="cat-head">Contestações</div>${m.contestacoes.map((c) => `
       <div class="its-alert alert-warning"><div><b>${statusBadge(c.status)}</b><br>${esc(c.motivo)}${c.resposta ? `<br><i>Resposta: ${esc(c.resposta)}</i>` : ''}</div></div>`).join('')}` : ''}
+
+    <div class="cat-head">Anexos</div>
+    <div id="det-anexos"></div>
   </div>`);
 
   const footer = h(`<div style="display:flex;gap:8px">
     ${m.status !== 'contestada' ? '<button class="its-btn its-btn-outline" id="btn-contestar">Registrar contestação</button>' : ''}
   </div>`);
   const { close } = openModal({ title: `Monitoria · ${esc(m.protocolo || '#' + m.id)}`, body, footer, lg: true });
+  carregarAnexos(body.querySelector('#det-anexos'), m.id, false);
 
   const bc = footer.querySelector('#btn-contestar');
   if (bc) bc.onclick = () => {
