@@ -30,7 +30,7 @@
     "express": "^4.21.2",
     "express-async-errors": "^3.1.1",
     "jsonwebtoken": "^9.0.2",
-    "multer": "^1.4.5-lts.1",
+    "multer": "^2.2.0",
     "pg": "^8.22.0",
     "typescript": "^5.7.3",
     "vite": "^8.1.0"
