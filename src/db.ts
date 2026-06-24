@@ -269,6 +269,12 @@ export async function initSchema(): Promise<void> {
     tamanho       INTEGER,
     criado_em     TEXT NOT NULL DEFAULT (${NOW_TEXT})
   );
+
+  CREATE TABLE IF NOT EXISTS configuracoes (
+    chave         TEXT PRIMARY KEY,
+    valor         TEXT,
+    atualizado_em TEXT NOT NULL DEFAULT (${NOW_TEXT})
+  );
   `);
 
   // Migrations seguras para bancos ja existentes (Postgres suporta IF NOT EXISTS).

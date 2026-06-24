@@ -98,7 +98,7 @@ export async function notificarFalhaCritica(monitoriaId: number): Promise<Notifi
       motivo: 'Nenhum gestor da equipe com e-mail cadastrado (verifique se os nomes dos membros conferem com os Usuários)',
     };
   }
-  if (!mailerConfigurado()) {
+  if (!(await mailerConfigurado())) {
     return { enviado: false, destinatarios, motivo: 'SMTP nao configurado' };
   }
 

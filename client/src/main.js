@@ -10,6 +10,7 @@ import { contestacoesView } from './views/contestacoes.js';
 import { usuariosView } from './views/usuarios.js';
 import { feedbackView } from './views/feedback.js';
 import { relatoriosView } from './views/relatorios.js';
+import { configuracoesView } from './views/configuracoes.js';
 
 const NIVEIS = { monitor: 1, supervisor: 2, coordenador: 3, gerente: 4, admin: 5 };
 const PERFIL_LABEL = { monitor: 'Monitor', supervisor: 'Supervisor', coordenador: 'Coordenador', gerente: 'Gerente', admin: 'Administrador' };
@@ -30,6 +31,7 @@ const NAV = [
   { id: 'formularios', ic: '📝', label: 'Formulários', view: formulariosView, nivel: 3 },
   { grupo: 'Administração' },
   { id: 'usuarios', ic: '🔐', label: 'Usuários', view: usuariosView, nivel: 4 },
+  { id: 'configuracoes', ic: '⚙️', label: 'Configurações', view: configuracoesView, nivel: 5 },
 ];
 
 let nivelUsuario = 0;

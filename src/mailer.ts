@@ -1,35 +1,13 @@
-import nodemailer, { type Transporter } from 'nodemailer';
+import nodemailer from 'nodemailer';
+import { getEmailConfig } from './config-store.js';
 
-// Configuracao de SMTP via variaveis de ambiente. Enquanto nao estiver
-// configurado, o envio e desativado de forma segura (apenas registra no log),
-// sem quebrar o fluxo da aplicacao.
-const HOST = process.env.SMTP_HOST?.trim();
-const PORT = Number(process.env.SMTP_PORT) || 587;
-const USER = process.env.SMTP_USER?.trim();
-const PASS = process.env.SMTP_PASS;
-// secure=true para porta 465 (SSL); false para 587/25 (STARTTLS).
-const SECURE = process.env.SMTP_SECURE
-  ? process.env.SMTP_SECURE === 'true'
-  : PORT === 465;
-const FROM = process.env.MAIL_FROM?.trim() || (USER ? `ITS Qualidade <${USER}>` : undefined);
+// O envio usa a configuracao efetiva (banco sobrepoe as variaveis de ambiente).
+// Enquanto host/usuario/senha/remetente nao estiverem completos, o envio e
+// desativado de forma segura (apenas registra no log), sem quebrar o fluxo.
 
-let transporter: Transporter | null = null;
-
-export function mailerConfigurado(): boolean {
-  return Boolean(HOST && USER && PASS && FROM);
-}
-
-function getTransporter(): Transporter | null {
-  if (!mailerConfigurado()) return null;
-  if (!transporter) {
-    transporter = nodemailer.createTransport({
-      host: HOST,
-      port: PORT,
-      secure: SECURE,
-      auth: { user: USER, pass: PASS },
-    });
-  }
-  return transporter;
+export async function mailerConfigurado(): Promise<boolean> {
+  const c = await getEmailConfig();
+  return Boolean(c.host && c.user && c.pass && c.from);
 }
 
 export interface EnvioResultado {
@@ -46,15 +24,21 @@ export async function enviarEmail(opts: {
   const destinatarios = (opts.para || []).filter(Boolean);
   if (!destinatarios.length) return { enviado: false, motivo: 'Nenhum destinatario com e-mail' };
 
-  const t = getTransporter();
-  if (!t) {
+  const c = await getEmailConfig();
+  if (!(c.host && c.user && c.pass && c.from)) {
     console.warn('[mailer] SMTP nao configurado — e-mail NAO enviado para:', destinatarios.join(', '));
     return { enviado: false, motivo: 'SMTP nao configurado' };
   }
 
   try {
-    await t.sendMail({
-      from: FROM,
+    const transporter = nodemailer.createTransport({
+      host: c.host,
+      port: c.port,
+      secure: c.secure,
+      auth: { user: c.user, pass: c.pass },
+    });
+    await transporter.sendMail({
+      from: c.from,
       to: destinatarios.join(', '),
       subject: opts.assunto,
       html: opts.html,
