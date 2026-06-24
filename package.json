@@ -6,7 +6,7 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "concurrently -n server,client -c blue,magenta \"npm:dev:server\" \"npm:dev:client\"",
-    "dev:server": "tsx watch src/server.ts",
+    "dev:server": "node --env-file=.env --import tsx/esm --watch --watch-preserve-output src/server.ts",
     "dev:client": "vite",
     "build": "npm run build:client && npm run build:server",
     "build:client": "vite build",
