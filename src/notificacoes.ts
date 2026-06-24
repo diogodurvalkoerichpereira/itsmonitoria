@@ -7,6 +7,7 @@ interface MonitoriaInfo {
   canal: string | null;
   data_atendimento: string | null;
   nota_final: number;
+  falha_critica: number;
   operador_nome: string;
   equipe_id: number | null;
   equipe_nome: string | null;
@@ -44,7 +45,9 @@ async function resolverDestinatarios(equipeId: number | null): Promise<string[]>
 }
 
 function montarEmail(m: MonitoriaInfo): { assunto: string; html: string; texto: string } {
-  const assunto = `[Qualidade] Falha crítica — ${m.operador_nome}${m.protocolo ? ' · ' + m.protocolo : ''}`;
+  const fatal = Boolean(m.falha_critica);
+  const motivo = fatal ? 'falha crítica' : 'nota zero';
+  const assunto = `[Qualidade] Monitoria zerada (${motivo}) — ${m.operador_nome}${m.protocolo ? ' · ' + m.protocolo : ''}`;
   const linhas = [
     ['Operador', m.operador_nome],
     ['Equipe', m.equipe_nome || '—'],
@@ -52,12 +55,12 @@ function montarEmail(m: MonitoriaInfo): { assunto: string; html: string; texto: 
     ['Canal', m.canal || '—'],
     ['Data do atendimento', m.data_atendimento || '—'],
     ['Monitor responsável', m.monitor_nome],
-    ['Nota final', '0 (falha crítica)'],
+    ['Nota final', `0 (${motivo})`],
   ];
   const html = `
     <div style="font-family:Arial,Helvetica,sans-serif;color:#1f2937;max-width:560px">
-      <h2 style="color:#dc2626;margin:0 0 4px">⚠️ Falha crítica em monitoria</h2>
-      <p style="margin:0 0 14px;color:#4b5563">Uma monitoria foi registrada com <b>falha crítica</b> (planilha zerada). Recomenda-se tratativa com o operador.</p>
+      <h2 style="color:#dc2626;margin:0 0 4px">⚠️ Monitoria zerada</h2>
+      <p style="margin:0 0 14px;color:#4b5563">Uma monitoria foi registrada com <b>nota 0${fatal ? ' (falha crítica — critério fatal)' : ''}</b>. Recomenda-se tratativa com o operador.</p>
       <table style="border-collapse:collapse;width:100%">
         ${linhas.map(([k, v]) => `<tr>
           <td style="padding:6px 10px;background:#f8fafc;border:1px solid #e5e7eb;font-weight:600;width:42%">${k}</td>
@@ -66,7 +69,7 @@ function montarEmail(m: MonitoriaInfo): { assunto: string; html: string; texto: 
       <p style="margin:16px 0 0;font-size:12px;color:#9ca3af">Mensagem automática · ITS Qualidade (módulo de monitoria)</p>
     </div>`;
   const texto =
-    `Falha crítica em monitoria (planilha zerada)\n\n` +
+    `Monitoria zerada — nota 0 (${motivo})\n\n` +
     linhas.map(([k, v]) => `${k}: ${v}`).join('\n') +
     `\n\nMensagem automática · ITS Qualidade`;
   return { assunto, html, texto };
@@ -79,7 +82,7 @@ export interface NotificacaoResultado extends EnvioResultado {
 /** Notifica os gestores da equipe sobre uma monitoria com falha crítica. */
 export async function notificarFalhaCritica(monitoriaId: number): Promise<NotificacaoResultado> {
   const m = (await db.prepare(`
-    SELECT m.id, m.protocolo, m.canal, m.data_atendimento, m.nota_final,
+    SELECT m.id, m.protocolo, m.canal, m.data_atendimento, m.nota_final, m.falha_critica,
            o.nome AS operador_nome, o.equipe_id, e.nome AS equipe_nome, u.nome AS monitor_nome
     FROM monitorias m
     JOIN operadores o ON o.id = m.operador_id

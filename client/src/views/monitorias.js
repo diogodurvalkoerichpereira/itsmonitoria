@@ -243,7 +243,7 @@ async function abrirMonitoria(id = null, reload) {
 
     <div class="its-alert alert-info" id="m-preview" style="margin-top:8px">Nota parcial: <b id="m-nota">—</b></div>
     <div id="m-notif-wrap" class="its-alert alert-warning hidden" style="margin-top:8px">
-      📧 <b>Falha crítica:</b> ao salvar, supervisores, coordenadores e gerentes da equipe serão notificados automaticamente por e-mail.
+      📧 <b>Monitoria zerada (nota 0):</b> ao salvar, supervisores, coordenadores e gerentes da equipe serão notificados automaticamente por e-mail.
     </div>
   </div>`);
 
@@ -302,11 +302,12 @@ async function abrirMonitoria(id = null, reload) {
       if (r.fatal && r.valor === 'nao_conforme') fatal = true;
     });
     const nota = fatal ? 0 : apl ? Math.round((obt / apl) * 1000) / 10 : 0;
+    const zerada = fatal || nota === 0;
     const prev = body.querySelector('#m-preview');
     prev.className = 'its-alert ' + (fatal ? 'alert-error' : nota >= 80 ? 'alert-success' : 'alert-warning');
     body.querySelector('#m-nota').textContent = fatal ? '0,0 — FALHA CRÍTICA' : nota.toFixed(1).replace('.', ',');
-    // Aviso de notificacao automatica quando a planilha zera
-    body.querySelector('#m-notif-wrap')?.classList.toggle('hidden', !fatal);
+    // Aviso de notificacao automatica quando a monitoria zera (nota 0)
+    body.querySelector('#m-notif-wrap')?.classList.toggle('hidden', !zerada);
   }
 
   body.querySelector('#m-form').onchange = (e) => carregaCriterios(e.target.value);

@@ -94,10 +94,11 @@ monitoriasRouter.post('/', async (req, res) => {
     return novoId;
   });
 
-  // Notifica automaticamente os gestores quando a planilha zera (falha critica).
+  // Notifica automaticamente os gestores quando a monitoria zera (nota 0), seja
+  // por falha critica (criterio fatal) ou por zerar a planilha de outro modo.
   // Best-effort: falha no e-mail nao impede o registro.
   let notificacao;
-  if (falhaCritica) {
+  if (nota === 0) {
     try {
       notificacao = await notificarFalhaCritica(mid);
     } catch (e) {
@@ -162,10 +163,10 @@ monitoriasRouter.put('/:id', async (req, res) => {
     }
   });
 
-  // Notifica automaticamente os gestores quando a edicao resulta em falha critica.
+  // Notifica automaticamente os gestores quando a edicao resulta em nota 0.
   let notificacao;
-  const atual = (await db.prepare('SELECT falha_critica FROM monitorias WHERE id=?').get(req.params.id)) as { falha_critica: number } | undefined;
-  if (atual?.falha_critica) {
+  const atual = (await db.prepare('SELECT nota_final FROM monitorias WHERE id=?').get(req.params.id)) as { nota_final: number } | undefined;
+  if (atual?.nota_final === 0) {
     try {
       notificacao = await notificarFalhaCritica(Number(req.params.id));
     } catch (e) {
