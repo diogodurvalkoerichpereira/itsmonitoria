@@ -63,14 +63,14 @@ authRouter.post('/login', async (req, res) => {
   res.cookie('token', token, {
     httpOnly: true,
     sameSite: 'lax',
-    secure: IS_PROD,
+    secure: IS_PROD && req.secure,
     maxAge: COOKIE_MAX_AGE,
   });
   res.json({ token, usuario: payload });
 });
 
 authRouter.post('/logout', (_req, res) => {
-  res.clearCookie('token', { httpOnly: true, sameSite: 'lax', secure: IS_PROD });
+  res.clearCookie('token', { httpOnly: true, sameSite: 'lax', secure: IS_PROD && req.secure });
   res.json({ ok: true });
 });
 
