@@ -69,7 +69,7 @@ authRouter.post('/login', async (req, res) => {
   res.json({ token, usuario: payload });
 });
 
-authRouter.post('/logout', (_req, res) => {
+authRouter.post('/logout', (req, res) => {
   res.clearCookie('token', { httpOnly: true, sameSite: 'lax', secure: IS_PROD && req.secure });
   res.json({ ok: true });
 });
