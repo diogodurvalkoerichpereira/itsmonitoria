@@ -1,10 +1,12 @@
 import { api } from '../api.js';
 import { esc, scorePill, fmtData, openModal, toast, h } from '../ui.js';
 
+// Avaliacao binaria: Pontuou / Não pontuou. 'parcial'/'na' mantidos para
+// exibir corretamente monitorias gravadas no modelo antigo (4 opcoes).
 const ROTULO = {
-  conforme: '<span class="its-badge badge-green">Conforme</span>',
+  conforme: '<span class="its-badge badge-green">Pontuou</span>',
   parcial: '<span class="its-badge badge-orange">Parcial</span>',
-  nao_conforme: '<span class="its-badge badge-red">Não conforme</span>',
+  nao_conforme: '<span class="its-badge badge-red">Não pontuou</span>',
   na: '<span class="its-badge badge-gray">N/A</span>',
 };
 

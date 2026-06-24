@@ -1,11 +1,12 @@
 import { api } from '../api.js';
 import { esc, scorePill, statusBadge, fmtData, openModal, toast, h } from '../ui.js';
 
+// Avaliacao binaria: o criterio pontuou (100% do peso) ou nao pontuou (0%).
+// Os identificadores 'conforme'/'nao_conforme' sao mantidos para preservar
+// compatibilidade com monitorias ja gravadas (que podem ter 'parcial'/'na').
 const VALORES = [
-  ['conforme', 'C', 'sel-c', 'Conforme'],
-  ['parcial', 'P', 'sel-p', 'Parcial'],
-  ['nao_conforme', 'NC', 'sel-n', 'Não conf.'],
-  ['na', 'N/A', 'sel-na', 'N/A'],
+  ['conforme', 'Pontuou', 'sel-c', 'Pontuou'],
+  ['nao_conforme', 'Não pontuou', 'sel-n', 'Não pontuou'],
 ];
 
 function iconeAnexo(mime = '') {
@@ -366,7 +367,9 @@ async function detalhe(id, reload) {
   const m = await api.get('/monitorias/' + id);
   const grupos = {};
   m.respostas.forEach((r) => (grupos[r.categoria] ||= []).push(r));
-  const rotulo = { conforme: '<span class="its-badge badge-green">Conforme</span>', parcial: '<span class="its-badge badge-orange">Parcial</span>', nao_conforme: '<span class="its-badge badge-red">Não conforme</span>', na: '<span class="its-badge badge-gray">N/A</span>' };
+  // 'conforme'/'nao_conforme' = Pontuou/Não pontuou. 'parcial'/'na' permanecem
+  // mapeados para exibir corretamente monitorias antigas (modelo de 4 opcoes).
+  const rotulo = { conforme: '<span class="its-badge badge-green">Pontuou</span>', parcial: '<span class="its-badge badge-orange">Parcial</span>', nao_conforme: '<span class="its-badge badge-red">Não pontuou</span>', na: '<span class="its-badge badge-gray">N/A</span>' };
 
   const body = h(`<div>
     <div class="card-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
