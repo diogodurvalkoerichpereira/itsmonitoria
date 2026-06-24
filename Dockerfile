@@ -1,24 +1,30 @@
-# syntax=docker/dockerfile:1
-# ---- build ----
-FROM node:22-slim AS build
+# Usa uma imagem oficial leve do Node.js (versao 22)
+FROM node:22-alpine
+
+# Define o diretorio de trabalho dentro do container
 WORKDIR /app
-COPY package*.json ./
+
+# Copia os arquivos de dependencia primeiro (aproveita cache do Docker)
+COPY package.json package-lock.json ./
+
+# Instala as dependencias completas para permitir o build
 RUN npm ci
-COPY tsconfig.json vite.config.js ./
-COPY src ./src
-COPY client ./client
+
+# Copia o restante do codigo da aplicacao
+COPY . .
+
+# Faz o build da aplicacao (Vite frontend + TypeScript backend)
 RUN npm run build
 
-# ---- runtime ----
-FROM node:22-slim AS runtime
-ENV NODE_ENV=production
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --omit=dev && npm cache clean --force
-# dist/ ja contem o servidor (dist/*.js) e o frontend Vite (dist/client/).
-COPY --from=build /app/dist ./dist
+# Remove as dependencias de desenvolvimento para deixar a imagem menor (opcional)
+RUN npm prune --omit=dev
 
-# Banco SQLite e uploads persistem em /app/data (monte um volume).
-VOLUME ["/app/data"]
+# Expoe a porta que a aplicacao vai rodar
 EXPOSE 3000
-CMD ["node", "--no-warnings", "dist/server.js"]
+
+# Define variaveis de ambiente padrao (serao sobrescritas pelo Coolify/Docker Compose)
+ENV NODE_ENV=production
+ENV PORT=3000
+
+# Comando de inicializacao
+CMD ["npm", "start"]

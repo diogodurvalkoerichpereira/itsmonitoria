@@ -1,12 +1,8 @@
 node_modules
 dist
-data
+client/dist
+.env
 .git
 .gitignore
-.claude
-*.log
+deploy
 *.zip
-.env
-.env.*
-!.env.example
-README.md
