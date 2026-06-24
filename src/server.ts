@@ -85,9 +85,13 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
   res.status(500).json({ erro: 'Erro interno do servidor' });
 });
 
-const PORT = Number(process.env.PORT) || 3000;
+// PORT pode ser um numero (ex.: 3000) ou um caminho de socket Unix (string),
+// como o Phusion Passenger usado por algumas hospedagens (Hostinger). Por isso
+// NAO convertemos para Number: o app.listen aceita ambos, e converter um socket
+// para Number daria NaN, fazendo o app escutar na porta errada (causa de 503).
+const PORT: string | number = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`\n  iTS Qualidade rodando na porta ${PORT} (${IS_PROD ? 'producao' : 'desenvolvimento'})`);
+  console.log(`\n  iTS Qualidade rodando em ${PORT} (${IS_PROD ? 'producao' : 'desenvolvimento'})`);
   if (!IS_PROD) {
     console.log(`  http://localhost:${PORT}  ·  login demo: admin@its.com.br / admin123\n`);
   } else {
