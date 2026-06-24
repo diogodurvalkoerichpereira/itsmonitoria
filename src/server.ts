@@ -1,6 +1,11 @@
 import express from 'express';
 import 'express-async-errors';
 import cookieParser from 'cookie-parser';
+import dns from 'node:dns';
+
+// Força IPv4 no Node.js (resolve ECONNREFUSED no Supabase em VPS com IPv6 quebrado)
+dns.setDefaultResultOrder('ipv4first');
+
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { existsSync } from 'node:fs';
