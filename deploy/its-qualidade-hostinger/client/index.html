@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>iTS Qualidade · Console de Monitoria</title>
+</head>
+
+<body>
+  <!-- LOGIN -->
+  <div id="login-view" class="login-wrap">
+    <div class="login-card">
+      <div class="login-brand">
+        <div class="brand-icon">iTS</div>
+        <div class="brand-text">
+          <b>iTS Customer Service</b>
+          <span>Console Admin · Módulo de Qualidade</span>
+        </div>
+      </div>
+      <h1 class="login-title">Acesso ao sistema</h1>
+      <p class="login-sub">Entre com suas credenciais corporativas</p>
+      <form id="login-form">
+        <div class="form-group">
+          <label class="its-label">E-mail</label>
+          <input class="its-input" type="email" id="login-email" placeholder="usuario@its.com.br" required />
+        </div>
+        <div class="form-group">
+          <label class="its-label">Senha</label>
+          <input class="its-input" type="password" id="login-senha" placeholder="••••••••" required />
+        </div>
+        <div id="login-error" class="its-alert alert-error hidden"></div>
+        <button type="submit" class="its-btn its-btn-primary its-btn-full">Entrar</button>
+      </form>
+      <div class="login-hint">
+        <b>Demo:</b> admin@its.com.br · senha <b>admin123</b>
+      </div>
+      <p class="login-foot">© 2026 iTS Customer Service · Todos os direitos reservados</p>
+    </div>
+  </div>
+
+  <!-- APP -->
+  <div id="app-view" class="app-shell hidden">
+    <aside class="app-sidebar">
+      <div class="sidebar-head">
+        <div class="brand-icon">iTS</div>
+        <div class="brand-text">
+          <b>Qualidade</b>
+          <span>Monitoria</span>
+        </div>
+      </div>
+      <nav class="sidebar-nav" id="sidebar-nav"></nav>
+    </aside>
+    <main class="app-main">
+      <header class="app-topbar">
+        <div class="topbar-title" id="topbar-title">Dashboard</div>
+        <div class="topbar-user">
+          <div class="avatar" id="user-avatar">--</div>
+          <div>
+            <div id="user-nome" style="font-weight:600"></div>
+            <div id="user-perfil" style="font-size:.72rem;color:var(--its-muted)"></div>
+          </div>
+          <button class="its-btn its-btn-ghost its-btn-sm" id="btn-logout">Sair</button>
+        </div>
+      </header>
+      <div class="app-content" id="content"></div>
+    </main>
+  </div>
+
+  <div id="modal-root"></div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+
+</html>

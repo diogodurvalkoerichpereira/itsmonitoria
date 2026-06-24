@@ -13,3 +13,7 @@ data/uploads/
 
 docker-compose.yml
 hostinger.env
+
+# Scripts locais com credenciais hardcoded — nunca versionar
+test-region.js
+prepend.js
