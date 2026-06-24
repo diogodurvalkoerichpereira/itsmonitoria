@@ -1,9 +1,23 @@
 import { api } from '../api.js';
 import { esc, openModal, toast, h } from '../ui.js';
 
+// Papeis de membro -> perfil correspondente no cadastro de Usuarios.
+const PAPEIS = [
+  { role: 'supervisores',  perfil: 'supervisor',  titulo: 'Supervisores' },
+  { role: 'coordenadores', perfil: 'coordenador', titulo: 'Coordenadores' },
+  { role: 'monitores',     perfil: 'monitor',     titulo: 'Monitores' },
+  { role: 'gerentes',      perfil: 'gerente',     titulo: 'Gerentes' },
+];
+
 export async function equipesView(el) {
   el.innerHTML = '<div class="empty">Carregando...</div>';
-  const equipes = await api.get('/equipes');
+  const [equipes, usuarios] = await Promise.all([
+    api.get('/equipes'),
+    api.get('/equipes/usuarios-disponiveis'),
+  ]);
+  // usuarios por perfil, para popular as listas de selecao
+  const porPerfil = {};
+  for (const p of PAPEIS) porPerfil[p.perfil] = usuarios.filter((u) => u.perfil === p.perfil);
 
   el.innerHTML = `
     <div class="page-head">
@@ -15,6 +29,7 @@ export async function equipesView(el) {
         <thead><tr>
           <th>Equipe</th>
           <th>Supervisores</th>
+          <th>Coordenadores</th>
           <th>Monitores</th>
           <th>Gerentes</th>
           <th>Operadores</th>
@@ -26,6 +41,7 @@ export async function equipesView(el) {
             <tr>
               <td><b>${esc(e.nome)}</b>${e.descricao ? `<div style="font-size:.75rem;color:var(--its-muted)">${esc(e.descricao)}</div>` : ''}</td>
               <td>${renderPessoasBadges(e.membros?.supervisores)}</td>
+              <td>${renderPessoasBadges(e.membros?.coordenadores)}</td>
               <td>${renderPessoasBadges(e.membros?.monitores)}</td>
               <td>${renderPessoasBadges(e.membros?.gerentes)}</td>
               <td>${e.total_operadores}</td>
@@ -34,95 +50,58 @@ export async function equipesView(el) {
                 <button class="its-btn its-btn-ghost its-btn-sm" data-edit="${e.id}">Editar</button>
                 <button class="its-btn its-btn-ghost its-btn-sm" data-del="${e.id}" style="color:var(--its-danger)">Excluir</button>
               </td>
-            </tr>`).join('') || '<tr><td colspan="7" class="empty">Nenhuma equipe</td></tr>'}
+            </tr>`).join('') || '<tr><td colspan="8" class="empty">Nenhuma equipe</td></tr>'}
         </tbody>
       </table>
     </div>`;
 
+  const secaoMembros = (p, selecionados) => `
+    <div class="form-group membros-section">
+      <label class="its-label membros-label">${p.titulo}</label>
+      <div class="membros-list" data-role="${p.role}">
+        ${selecionados.map((n) => membroTag(n)).join('')}
+      </div>
+      <div class="membros-add-row">
+        <select class="its-select its-input-sm" data-add-input="${p.role}">
+          <option value="">Selecione um usuário…</option>
+          ${porPerfil[p.perfil].map((u) => `<option value="${esc(u.nome)}">${esc(u.nome)}</option>`).join('')}
+        </select>
+        <button type="button" class="its-btn its-btn-sm its-btn-outline" data-add-btn="${p.role}">+ Adicionar</button>
+      </div>
+      ${porPerfil[p.perfil].length === 0 ? `<div style="font-size:.72rem;color:var(--its-muted);margin-top:4px">Nenhum usuário com perfil ${p.perfil} cadastrado. Cadastre em Usuários.</div>` : ''}
+    </div>`;
+
   const abrirModal = (e) => {
-    const sup = e?.membros?.supervisores || [];
-    const mon = e?.membros?.monitores || [];
-    const ger = e?.membros?.gerentes || [];
+    const sel = (role) => e?.membros?.[role] || [];
 
     const f = h(`<form class="equipe-form">
       <div class="form-group"><label class="its-label">Nome da equipe</label><input class="its-input" name="nome" value="${esc(e?.nome || '')}" required></div>
       <div class="form-group"><label class="its-label">Descrição</label><textarea class="its-input" name="descricao" rows="2">${esc(e?.descricao || '')}</textarea></div>
-
-      <div class="form-group membros-section">
-        <label class="its-label membros-label">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-          Supervisores
-        </label>
-        <div class="membros-list" data-role="supervisores">
-          ${sup.map((n) => membroTag(n)).join('')}
-        </div>
-        <div class="membros-add-row">
-          <input class="its-input its-input-sm" placeholder="Nome do supervisor" data-add-input="supervisores">
-          <button type="button" class="its-btn its-btn-sm its-btn-outline" data-add-btn="supervisores">+ Adicionar</button>
-        </div>
-      </div>
-
-      <div class="form-group membros-section">
-        <label class="its-label membros-label">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-          Monitores
-        </label>
-        <div class="membros-list" data-role="monitores">
-          ${mon.map((n) => membroTag(n)).join('')}
-        </div>
-        <div class="membros-add-row">
-          <input class="its-input its-input-sm" placeholder="Nome do monitor" data-add-input="monitores">
-          <button type="button" class="its-btn its-btn-sm its-btn-outline" data-add-btn="monitores">+ Adicionar</button>
-        </div>
-      </div>
-
-      <div class="form-group membros-section">
-        <label class="its-label membros-label">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-          Gerentes
-        </label>
-        <div class="membros-list" data-role="gerentes">
-          ${ger.map((n) => membroTag(n)).join('')}
-        </div>
-        <div class="membros-add-row">
-          <input class="its-input its-input-sm" placeholder="Nome do gerente" data-add-input="gerentes">
-          <button type="button" class="its-btn its-btn-sm its-btn-outline" data-add-btn="gerentes">+ Adicionar</button>
-        </div>
-      </div>
-
+      ${PAPEIS.map((p) => secaoMembros(p, sel(p.role))).join('')}
       ${e?.id ? `<label class="its-label" style="margin-top:.5rem"><input type="checkbox" name="ativo" ${e.ativo ? 'checked' : ''}> Equipe ativa</label>` : ''}
     </form>`);
 
-    // Wire up add buttons
-    f.querySelectorAll('[data-add-btn]').forEach((btn) => {
-      const role = btn.dataset.addBtn;
-      const input = f.querySelector(`[data-add-input="${role}"]`);
-      const list = f.querySelector(`[data-role="${role}"]`);
-
-      const addMembro = () => {
-        const nome = input.value.trim();
-        if (!nome) return;
-        // Avoid duplicates
-        const existing = [...list.querySelectorAll('.membro-tag')].map((t) => t.dataset.nome);
-        if (existing.includes(nome)) { toast('Já adicionado', true); return; }
-        list.insertAdjacentHTML('beforeend', membroTag(nome));
-        wireRemove(list.lastElementChild);
-        input.value = '';
-        input.focus();
-      };
-
-      btn.addEventListener('click', addMembro);
-      input.addEventListener('keydown', (ev) => {
-        if (ev.key === 'Enter') { ev.preventDefault(); addMembro(); }
-      });
-    });
-
-    // Wire remove buttons for existing tags
     function wireRemove(tag) {
       const btn = tag.querySelector('.membro-remove');
       if (btn) btn.addEventListener('click', () => tag.remove());
     }
     f.querySelectorAll('.membro-tag').forEach(wireRemove);
+
+    f.querySelectorAll('[data-add-btn]').forEach((btn) => {
+      const role = btn.dataset.addBtn;
+      const select = f.querySelector(`select[data-add-input="${role}"]`);
+      const list = f.querySelector(`[data-role="${role}"]`);
+      const addMembro = () => {
+        const nome = select.value;
+        if (!nome) return;
+        const existing = [...list.querySelectorAll('.membro-tag')].map((t) => t.dataset.nome);
+        if (existing.includes(nome)) { toast('Já adicionado', true); return; }
+        list.insertAdjacentHTML('beforeend', membroTag(nome));
+        wireRemove(list.lastElementChild);
+        select.value = '';
+      };
+      btn.addEventListener('click', addMembro);
+    });
 
     const salvar = h(`<button class="its-btn its-btn-primary">Salvar</button>`);
     const { close } = openModal({ title: e?.id ? 'Editar equipe' : 'Nova equipe', body: f, footer: salvar, lg: true });
@@ -137,9 +116,10 @@ export async function equipesView(el) {
           ...fd,
           ativo: f.ativo ? f.ativo.checked : true,
           supervisor: collectNomes('supervisores')[0] || null,
-          supervisores: collectNomes('supervisores'),
-          monitores:    collectNomes('monitores'),
-          gerentes:     collectNomes('gerentes'),
+          supervisores:  collectNomes('supervisores'),
+          coordenadores: collectNomes('coordenadores'),
+          monitores:     collectNomes('monitores'),
+          gerentes:      collectNomes('gerentes'),
         };
         if (e?.id) await api.put('/equipes/' + e.id, payload);
         else await api.post('/equipes', payload);
@@ -168,7 +148,5 @@ function membroTag(nome) {
 
 function renderPessoasBadges(arr) {
   if (!arr || arr.length === 0) return '<span style="color:var(--its-muted)">—</span>';
-  return arr.map((n) =>
-    `<span class="pessoa-badge">${esc(n)}</span>`
-  ).join(' ');
+  return arr.map((n) => `<span class="pessoa-badge">${esc(n)}</span>`).join(' ');
 }

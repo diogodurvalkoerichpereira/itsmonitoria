@@ -11,6 +11,7 @@ async function getMembros(equipeId: number | bigint) {
   return {
     supervisores: rows.filter((r) => r.papel === 'supervisor').map((r) => r.nome),
     monitores:    rows.filter((r) => r.papel === 'monitor').map((r) => r.nome),
+    coordenadores:rows.filter((r) => r.papel === 'coordenador').map((r) => r.nome),
     gerentes:     rows.filter((r) => r.papel === 'gerente').map((r) => r.nome),
   };
 }
@@ -20,6 +21,7 @@ async function syncMembros(
   equipeId: number | bigint | undefined,
   supervisores: string[],
   monitores: string[],
+  coordenadores: string[],
   gerentes: string[]
 ) {
   await db.prepare('DELETE FROM equipe_membros WHERE equipe_id = ?').run(equipeId);
@@ -27,9 +29,10 @@ async function syncMembros(
   const ins = db.prepare(
     'INSERT INTO equipe_membros (equipe_id, nome, papel) VALUES (?, ?, ?) ON CONFLICT DO NOTHING'
   );
-  for (const nome of (supervisores || []).filter(Boolean)) await ins.run(equipeId, nome.trim(), 'supervisor');
-  for (const nome of (monitores || []).filter(Boolean))    await ins.run(equipeId, nome.trim(), 'monitor');
-  for (const nome of (gerentes || []).filter(Boolean))     await ins.run(equipeId, nome.trim(), 'gerente');
+  for (const nome of (supervisores || []).filter(Boolean))  await ins.run(equipeId, nome.trim(), 'supervisor');
+  for (const nome of (monitores || []).filter(Boolean))     await ins.run(equipeId, nome.trim(), 'monitor');
+  for (const nome of (coordenadores || []).filter(Boolean)) await ins.run(equipeId, nome.trim(), 'coordenador');
+  for (const nome of (gerentes || []).filter(Boolean))      await ins.run(equipeId, nome.trim(), 'gerente');
 }
 
 equipesRouter.get('/', async (_req, res) => {
@@ -45,6 +48,15 @@ equipesRouter.get('/', async (_req, res) => {
   res.json(result);
 });
 
+// Usuarios ativos para seleccao de membros (id, nome, perfil). Acessivel a
+// quem ja pode ver/editar equipes (a tela de Usuarios completa exige gerente).
+equipesRouter.get('/usuarios-disponiveis', async (_req, res) => {
+  const rows = await db.prepare(
+    "SELECT id, nome, perfil FROM usuarios WHERE ativo = 1 ORDER BY nome"
+  ).all();
+  res.json(rows);
+});
+
 equipesRouter.get('/:id', async (req, res) => {
   const row = (await db.prepare(`
     SELECT e.*, (SELECT COUNT(*) FROM operadores o WHERE o.equipe_id = e.id AND o.ativo = 1) AS total_operadores
@@ -55,25 +67,25 @@ equipesRouter.get('/:id', async (req, res) => {
 });
 
 equipesRouter.post('/', async (req, res) => {
-  const { nome, supervisor, descricao, supervisores, monitores, gerentes } = req.body ?? {};
+  const { nome, supervisor, descricao, supervisores, monitores, coordenadores, gerentes } = req.body ?? {};
   if (!nome) return res.status(400).json({ erro: 'Nome obrigatorio' });
   const info = await db
     .prepare('INSERT INTO equipes (nome, supervisor, descricao) VALUES (?, ?, ?)')
     .run(nome, supervisor ?? null, descricao ?? null);
 
   // Sync membros (campo "supervisor" legado mantido para retrocompatibilidade)
-  await syncMembros(info.lastInsertRowid, supervisores || [], monitores || [], gerentes || []);
+  await syncMembros(info.lastInsertRowid, supervisores || [], monitores || [], coordenadores || [], gerentes || []);
 
   res.status(201).json({ id: info.lastInsertRowid });
 });
 
 equipesRouter.put('/:id', async (req, res) => {
-  const { nome, supervisor, descricao, ativo, supervisores, monitores, gerentes } = req.body ?? {};
+  const { nome, supervisor, descricao, ativo, supervisores, monitores, coordenadores, gerentes } = req.body ?? {};
   await db.prepare('UPDATE equipes SET nome=?, supervisor=?, descricao=?, ativo=? WHERE id=?')
     .run(nome, supervisor ?? null, descricao ?? null, ativo ? 1 : 0, req.params.id);
 
   // Sync membros
-  await syncMembros(Number(req.params.id), supervisores || [], monitores || [], gerentes || []);
+  await syncMembros(Number(req.params.id), supervisores || [], monitores || [], coordenadores || [], gerentes || []);
 
   res.json({ ok: true });
 });

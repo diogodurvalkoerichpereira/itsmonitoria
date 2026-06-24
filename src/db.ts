@@ -160,7 +160,7 @@ export async function initSchema(): Promise<void> {
     id        SERIAL PRIMARY KEY,
     equipe_id INTEGER NOT NULL REFERENCES equipes(id) ON DELETE CASCADE,
     nome      TEXT NOT NULL,
-    papel     TEXT NOT NULL CHECK(papel IN ('supervisor','monitor','gerente')),
+    papel     TEXT NOT NULL CHECK(papel IN ('supervisor','monitor','coordenador','gerente')),
     criado_em TEXT NOT NULL DEFAULT (${NOW_TEXT}),
     UNIQUE(equipe_id, nome, papel)
   );
@@ -301,4 +301,9 @@ export async function initSchema(): Promise<void> {
   // Posicionamento do operador no feedback (concorda x discorda)
   await addColumn('monitorias', 'feedback_concordou', 'INTEGER');
   await addColumn('monitorias', 'feedback_discordancia', 'TEXT');
+
+  // Inclui 'coordenador' nos papeis de membro de equipe (bancos ja existentes
+  // foram criados com o CHECK antigo: supervisor/monitor/gerente).
+  await db.exec(`ALTER TABLE equipe_membros DROP CONSTRAINT IF EXISTS equipe_membros_papel_check`);
+  await db.exec(`ALTER TABLE equipe_membros ADD CONSTRAINT equipe_membros_papel_check CHECK (papel IN ('supervisor','monitor','coordenador','gerente'))`);
 }
