@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { db } from '../db.js';
 import { calcularNota, type RespostaInput } from '../scoring.js';
+import { notificarFalhaCritica } from '../notificacoes.js';
 
 export const monitoriasRouter = Router();
 
@@ -63,7 +64,7 @@ monitoriasRouter.post('/', async (req, res) => {
   const {
     formulario_id, operador_id, data_atendimento, canal, protocolo, observacoes, respostas, status,
     operacao, telefone_cliente, tabulacao, produto, data_monitoria, monitoria_padrao,
-    feedback_aplicado, data_feedback, status_feedback, sla, detalhe_sla
+    feedback_aplicado, data_feedback, status_feedback, sla, detalhe_sla, notificar_gestores
   } = req.body ?? {};
 
   if (!formulario_id || !operador_id || !Array.isArray(respostas)) {
@@ -93,14 +94,25 @@ monitoriasRouter.post('/', async (req, res) => {
     return novoId;
   });
 
-  res.status(201).json({ id: mid, nota_final: nota, falha_critica: falhaCritica });
+  // Notificacao opcional aos gestores da equipe quando a planilha zera (falha
+  // critica). E "best-effort": uma falha no e-mail nao impede o registro.
+  let notificacao;
+  if (falhaCritica && notificar_gestores) {
+    try {
+      notificacao = await notificarFalhaCritica(mid);
+    } catch (e) {
+      notificacao = { enviado: false, destinatarios: [], motivo: e instanceof Error ? e.message : String(e) };
+    }
+  }
+
+  res.status(201).json({ id: mid, nota_final: nota, falha_critica: falhaCritica, notificacao });
 });
 
 monitoriasRouter.put('/:id', async (req, res) => {
   const {
     formulario_id, operador_id, data_atendimento, canal, protocolo, observacoes, respostas, status,
     operacao, telefone_cliente, tabulacao, produto, data_monitoria, monitoria_padrao,
-    feedback_aplicado, data_feedback, status_feedback, sla, detalhe_sla
+    feedback_aplicado, data_feedback, status_feedback, sla, detalhe_sla, notificar_gestores
   } = req.body ?? {};
 
   if (!formulario_id || !operador_id) {
@@ -150,7 +162,20 @@ monitoriasRouter.put('/:id', async (req, res) => {
     }
   });
 
-  res.json({ ok: true });
+  // Notificacao opcional aos gestores quando a edicao resulta em falha critica.
+  let notificacao;
+  if (notificar_gestores) {
+    const atual = (await db.prepare('SELECT falha_critica FROM monitorias WHERE id=?').get(req.params.id)) as { falha_critica: number } | undefined;
+    if (atual?.falha_critica) {
+      try {
+        notificacao = await notificarFalhaCritica(Number(req.params.id));
+      } catch (e) {
+        notificacao = { enviado: false, destinatarios: [], motivo: e instanceof Error ? e.message : String(e) };
+      }
+    }
+  }
+
+  res.json({ ok: true, notificacao });
 });
 
 monitoriasRouter.delete('/:id', async (req, res) => {
