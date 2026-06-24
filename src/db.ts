@@ -173,6 +173,7 @@ export async function initSchema(): Promise<void> {
     equipe_id     INTEGER REFERENCES equipes(id) ON DELETE SET NULL,
     cargo         TEXT,
     data_admissao TEXT,
+    senha_hash    TEXT,
     ativo         INTEGER NOT NULL DEFAULT 1,
     criado_em     TEXT NOT NULL DEFAULT (${NOW_TEXT})
   );
@@ -275,6 +276,8 @@ export async function initSchema(): Promise<void> {
     db.exec(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS ${col} ${type}`);
 
   await addColumn('operadores', 'cpf', 'TEXT');
+  // Senha do operador para assinatura do feedback (substitui a confirmacao por CPF).
+  await addColumn('operadores', 'senha_hash', 'TEXT');
   await addColumn('monitorias', 'operacao', 'TEXT');
   await addColumn('monitorias', 'telefone_cliente', 'TEXT');
   await addColumn('monitorias', 'tabulacao', 'TEXT');

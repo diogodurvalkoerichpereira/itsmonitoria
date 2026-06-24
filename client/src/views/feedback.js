@@ -16,7 +16,7 @@ export async function feedbackView(el) {
 
   el.innerHTML = `
     <div class="section-title">Feedback de Monitorias</div>
-    <div class="its-alert alert-info">Apresente a avaliação ao operador. Após a apresentação, o operador confirma a ciência <b>assinando com o CPF</b>. Só então o feedback é registrado como realizado.</div>
+    <div class="its-alert alert-info">Apresente a avaliação ao operador. Após a apresentação, o operador confirma a ciência <b>assinando com a senha</b>. Só então o feedback é registrado como realizado.</div>
     <div class="filters its-card">
       <div class="form-group"><label class="its-label">Situação</label>
         <select class="its-select" id="f-status">
@@ -118,13 +118,13 @@ async function aplicar(id, reload, somenteVer = false) {
 
   const realizadoBloco = m.feedback_concordou === 0
     ? `<div class="its-alert alert-warning" style="margin-top:14px">
-         <div><b>Feedback realizado — operador NÃO concordou.</b> Assinado em ${fmtData(m.data_feedback)} · CPF confirmado.
+         <div><b>Feedback realizado — operador NÃO concordou.</b> Assinado em ${fmtData(m.data_feedback)} · senha confirmada.
          <br><b>Motivo da discordância:</b> ${esc(m.feedback_discordancia || '—')}
          ${m.feedback_observacao ? `<br><b>Observação:</b> ${esc(m.feedback_observacao)}` : ''}
          <br><i>Uma contestação foi aberta para análise.</i></div>
        </div>`
     : `<div class="its-alert alert-success" style="margin-top:14px">
-         <div><b>Feedback realizado — operador concordou.</b> Assinado em ${fmtData(m.data_feedback)} · CPF do operador confirmado.
+         <div><b>Feedback realizado — operador concordou.</b> Assinado em ${fmtData(m.data_feedback)} · senha do operador confirmada.
          ${m.feedback_observacao ? `<br><b>Observação do feedback:</b> ${esc(m.feedback_observacao)}` : ''}</div>
        </div>`;
 
@@ -143,10 +143,10 @@ async function aplicar(id, reload, somenteVer = false) {
       <div style="font-size:.74rem;color:var(--its-muted);margin-top:4px">Ao registrar discordância, uma contestação é aberta automaticamente para análise do supervisor.</div>
     </div>
     <div class="cat-head" style="margin-top:6px">Assinatura do operador</div>
-    <div class="its-alert alert-warning">O operador declara <b>ciência</b> da avaliação acima (concordando ou não). Confirme digitando o <b>CPF do operador</b>.</div>
+    <div class="its-alert alert-warning">O operador declara <b>ciência</b> da avaliação acima (concordando ou não). Confirme digitando a <b>senha do operador</b>.</div>
     <div class="form-group"><label class="its-label">Observação do feedback (opcional)</label><textarea class="its-input" id="fb-obs" rows="2" placeholder="Pontos reforçados, plano de ação..."></textarea></div>
     <div class="form-row">
-      <div class="form-group"><label class="its-label">CPF do operador (assinatura)</label><input class="its-input" id="fb-cpf" placeholder="000.000.000-00"></div>
+      <div class="form-group"><label class="its-label">Senha do operador (assinatura)</label><input class="its-input" type="password" id="fb-senha" autocomplete="off" placeholder="Senha do operador"></div>
     </div>
     <div id="fb-erro" class="its-alert alert-error hidden"></div>`;
 
@@ -171,13 +171,13 @@ async function aplicar(id, reload, somenteVer = false) {
       const mostrar = (msg) => { erro.textContent = msg; erro.classList.remove('hidden'); };
       const concorda = selConcorda.value === 'sim';
       const discordancia = body.querySelector('#fb-disc').value.trim();
-      const cpf = body.querySelector('#fb-cpf').value.trim();
+      const senha = body.querySelector('#fb-senha').value;
       if (!concorda && !discordancia) return mostrar('Informe o motivo da discordância.');
-      if (!cpf) return mostrar('Informe o CPF do operador.');
+      if (!senha) return mostrar('Informe a senha do operador.');
       footer.disabled = true;
       try {
         await api.post(`/feedback/${id}/aplicar`, {
-          cpf,
+          senha,
           observacao: body.querySelector('#fb-obs').value.trim(),
           concordou: concorda,
           discordancia: concorda ? null : discordancia,

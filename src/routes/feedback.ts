@@ -1,9 +1,8 @@
 import { Router } from 'express';
+import bcrypt from 'bcryptjs';
 import { db } from '../db.js';
 
 export const feedbackRouter = Router();
-
-const soDigitos = (s: unknown) => String(s ?? '').replace(/\D/g, '');
 
 // Lista atendimentos monitorados para feedback (pendentes e realizados)
 feedbackRouter.get('/', async (req, res) => {
@@ -39,25 +38,26 @@ interface MonAlvo {
   id: number;
   feedback_aplicado: number;
   operador_cpf: string | null;
+  operador_senha_hash: string | null;
 }
 
-// Aplica o feedback: o operador assina confirmando ciencia, validando o CPF
+// Aplica o feedback: o operador assina confirmando ciencia, validando a SENHA.
 feedbackRouter.post('/:id/aplicar', async (req, res) => {
-  const { cpf, observacao, concordou, discordancia } = req.body ?? {};
+  const { senha, observacao, concordou, discordancia } = req.body ?? {};
   const m = (await db.prepare(`
-    SELECT m.id, m.feedback_aplicado, o.cpf AS operador_cpf
+    SELECT m.id, m.feedback_aplicado, o.cpf AS operador_cpf, o.senha_hash AS operador_senha_hash
     FROM monitorias m JOIN operadores o ON o.id = m.operador_id
     WHERE m.id = ?
   `).get(req.params.id)) as MonAlvo | undefined;
 
   if (!m) return res.status(404).json({ erro: 'Monitoria nao encontrada' });
   if (m.feedback_aplicado) return res.status(409).json({ erro: 'Feedback ja aplicado para esta monitoria' });
-  if (!m.operador_cpf) {
-    return res.status(400).json({ erro: 'Operador sem CPF cadastrado. Cadastre o CPF do operador antes de aplicar o feedback.' });
+  if (!m.operador_senha_hash) {
+    return res.status(400).json({ erro: 'Operador sem senha cadastrada. Defina uma senha para o operador antes de aplicar o feedback.' });
   }
-  if (!cpf) return res.status(400).json({ erro: 'Informe o CPF do operador para a assinatura' });
-  if (soDigitos(cpf) !== soDigitos(m.operador_cpf)) {
-    return res.status(400).json({ erro: 'CPF informado nao confere com o do operador' });
+  if (!senha) return res.status(400).json({ erro: 'Informe a senha do operador para a assinatura' });
+  if (!bcrypt.compareSync(String(senha), m.operador_senha_hash)) {
+    return res.status(400).json({ erro: 'Senha do operador incorreta' });
   }
 
   // concordou ausente = concorda (compatibilidade); false = discorda
