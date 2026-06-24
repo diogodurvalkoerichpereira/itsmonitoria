@@ -94,10 +94,10 @@ monitoriasRouter.post('/', async (req, res) => {
     return novoId;
   });
 
-  // Notificacao opcional aos gestores da equipe quando a planilha zera (falha
-  // critica). E "best-effort": uma falha no e-mail nao impede o registro.
+  // Notifica automaticamente os gestores quando a planilha zera (falha critica).
+  // Best-effort: falha no e-mail nao impede o registro.
   let notificacao;
-  if (falhaCritica && notificar_gestores) {
+  if (falhaCritica) {
     try {
       notificacao = await notificarFalhaCritica(mid);
     } catch (e) {
@@ -162,16 +162,14 @@ monitoriasRouter.put('/:id', async (req, res) => {
     }
   });
 
-  // Notificacao opcional aos gestores quando a edicao resulta em falha critica.
+  // Notifica automaticamente os gestores quando a edicao resulta em falha critica.
   let notificacao;
-  if (notificar_gestores) {
-    const atual = (await db.prepare('SELECT falha_critica FROM monitorias WHERE id=?').get(req.params.id)) as { falha_critica: number } | undefined;
-    if (atual?.falha_critica) {
-      try {
-        notificacao = await notificarFalhaCritica(Number(req.params.id));
-      } catch (e) {
-        notificacao = { enviado: false, destinatarios: [], motivo: e instanceof Error ? e.message : String(e) };
-      }
+  const atual = (await db.prepare('SELECT falha_critica FROM monitorias WHERE id=?').get(req.params.id)) as { falha_critica: number } | undefined;
+  if (atual?.falha_critica) {
+    try {
+      notificacao = await notificarFalhaCritica(Number(req.params.id));
+    } catch (e) {
+      notificacao = { enviado: false, destinatarios: [], motivo: e instanceof Error ? e.message : String(e) };
     }
   }
 

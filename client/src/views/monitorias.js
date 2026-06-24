@@ -243,10 +243,7 @@ async function abrirMonitoria(id = null, reload) {
 
     <div class="its-alert alert-info" id="m-preview" style="margin-top:8px">Nota parcial: <b id="m-nota">—</b></div>
     <div id="m-notif-wrap" class="its-alert alert-warning hidden" style="margin-top:8px">
-      <label class="its-label" style="display:flex;align-items:center;gap:8px;margin:0;cursor:pointer">
-        <input type="checkbox" id="m-notif"> 📧 Notificar por e-mail o supervisor, coordenador e gerente da equipe (opcional)
-      </label>
-      <div style="font-size:.74rem;color:var(--its-muted);margin-top:4px">Disponível porque esta monitoria zerou a planilha (falha crítica). O e-mail vai para os gestores da equipe do operador.</div>
+      📧 <b>Falha crítica:</b> ao salvar, supervisores, coordenadores e gerentes da equipe serão notificados automaticamente por e-mail.
     </div>
   </div>`);
 
@@ -308,12 +305,8 @@ async function abrirMonitoria(id = null, reload) {
     const prev = body.querySelector('#m-preview');
     prev.className = 'its-alert ' + (fatal ? 'alert-error' : nota >= 80 ? 'alert-success' : 'alert-warning');
     body.querySelector('#m-nota').textContent = fatal ? '0,0 — FALHA CRÍTICA' : nota.toFixed(1).replace('.', ',');
-    // Opcao de notificar gestores so faz sentido quando a planilha zera (falha critica)
-    const notifWrap = body.querySelector('#m-notif-wrap');
-    if (notifWrap) {
-      notifWrap.classList.toggle('hidden', !fatal);
-      if (!fatal) body.querySelector('#m-notif').checked = false;
-    }
+    // Aviso de notificacao automatica quando a planilha zera
+    body.querySelector('#m-notif-wrap')?.classList.toggle('hidden', !fatal);
   }
 
   body.querySelector('#m-form').onchange = (e) => carregaCriterios(e.target.value);
@@ -344,7 +337,6 @@ async function abrirMonitoria(id = null, reload) {
       status_feedback: body.querySelector('#m-feed-status').value,
       sla: body.querySelector('#m-sla').value,
       detalhe_sla: body.querySelector('#m-sla-det').value.trim(),
-      notificar_gestores: body.querySelector('#m-notif')?.checked || false,
       respostas: [...respostas.entries()].map(([criterio_id, r]) => ({ criterio_id, valor: r.valor })),
     };
     salvar.disabled = true;
@@ -370,11 +362,11 @@ async function abrirMonitoria(id = null, reload) {
         msg += ` · ${fileInput.files.length} anexo(s)`;
       }
       toast(msg);
-      // Resultado da notificacao opcional aos gestores (falha critica)
+      // Resultado da notificacao automatica aos gestores (falha critica)
       const n = res && res.notificacao;
       if (n) {
-        if (n.enviado) toast(`E-mail enviado a ${n.destinatarios.length} gestor(es) da equipe`);
-        else toast('Notificação não enviada: ' + (n.motivo || 'erro desconhecido'), true);
+        if (n.enviado) toast(`📧 E-mail de falha crítica enviado a ${n.destinatarios.length} gestor(es)`);
+        else toast('⚠️ Falha crítica — e-mail não enviado: ' + (n.motivo || 'erro desconhecido'), true);
       }
       close();
       reload();
