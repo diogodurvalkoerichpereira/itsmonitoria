@@ -20,7 +20,10 @@ export async function formulariosView(el) {
               <td>${esc(f.descricao || '—')}</td>
               <td>${f.total_criterios}</td>
               <td>${f.ativo ? '<span class="its-badge badge-green">Ativo</span>' : '<span class="its-badge badge-gray">Inativo</span>'}</td>
-              <td><button class="its-btn its-btn-ghost its-btn-sm" data-edit="${f.id}">Editar</button></td>
+              <td style="white-space:nowrap">
+                <button class="its-btn its-btn-ghost its-btn-sm" data-edit="${f.id}">Editar</button>
+                <button class="its-btn its-btn-danger its-btn-sm" data-del="${f.id}" data-nome="${esc(f.nome)}">Excluir</button>
+              </td>
             </tr>`).join('') || '<tr><td colspan="5" class="empty">Nenhum formulário</td></tr>'}
         </tbody>
       </table>
@@ -95,4 +98,14 @@ export async function formulariosView(el) {
 
   el.querySelector('#novo').onclick = () => abrir(null);
   el.querySelectorAll('[data-edit]').forEach((b) => b.onclick = () => abrir(b.dataset.edit));
+  el.querySelectorAll('[data-del]').forEach((b) => b.onclick = async () => {
+    if (!confirm(`Excluir o formulário "${b.dataset.nome}"?\n\nOs critérios serão removidos. Monitorias já existentes que usam este formulário podem ser afetadas.`)) return;
+    try {
+      await api.delete('/formularios/' + b.dataset.del);
+      toast('Formulário excluído');
+      formulariosView(el);
+    } catch (e) {
+      toast('Não foi possível excluir: ' + e.message, true);
+    }
+  });
 }
