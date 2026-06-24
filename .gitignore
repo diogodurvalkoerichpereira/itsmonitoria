@@ -10,3 +10,6 @@ data/uploads/
 *.zip
 .claude/
 .DS_Store
+
+docker-compose.yml
+hostinger.env
