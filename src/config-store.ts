@@ -41,10 +41,13 @@ export async function setEmailConfig(parcial: Partial<{
   smtp_host: string; smtp_port: string | number; smtp_secure: boolean | string;
   smtp_user: string; smtp_pass: string; mail_from: string;
 }>): Promise<void> {
+  // RETURNING chave evita que a camada de DB anexe "RETURNING id"
+  // automaticamente (a tabela configuracoes nao tem coluna id).
   const upsert = db.prepare(`
     INSERT INTO configuracoes (chave, valor, atualizado_em)
     VALUES (?, ?, to_char((now() AT TIME ZONE 'UTC'), 'YYYY-MM-DD HH24:MI:SS'))
     ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor, atualizado_em = EXCLUDED.atualizado_em
+    RETURNING chave
   `);
   const set = async (chave: typeof CHAVES[number], valor: unknown) => {
     if (valor == null) return;
