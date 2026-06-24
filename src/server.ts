@@ -21,6 +21,7 @@ import { contestacoesRouter } from './routes/contestacoes.js';
 import { calibracoesRouter } from './routes/calibracoes.js';
 import { dashboardRouter } from './routes/dashboard.js';
 import { usuariosRouter } from './routes/usuarios.js';
+import { relatoriosRouter } from './routes/relatorios.js';
 import { feedbackRouter } from './routes/feedback.js';
 import { anexosRouter } from './routes/anexos.js';
 
@@ -65,6 +66,7 @@ app.use('/api/feedback', autenticar, feedbackRouter);
 app.use('/api/contestacoes', autenticar, contestacoesRouter);
 app.use('/api/calibracoes', autenticar, calibracoesRouter);
 app.use('/api/usuarios', autenticar, exigirNivel(NIVEIS.gerente), usuariosRouter);
+app.use('/api/relatorios', autenticar, exigirNivel(NIVEIS.supervisor), relatoriosRouter);
 app.use('/api', autenticar, anexosRouter);
 
 // Frontend: build do Vite (gerado em dist/client por `npm run build`).

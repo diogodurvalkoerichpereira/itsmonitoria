@@ -9,6 +9,7 @@ import { calibracoesView } from './views/calibracoes.js';
 import { contestacoesView } from './views/contestacoes.js';
 import { usuariosView } from './views/usuarios.js';
 import { feedbackView } from './views/feedback.js';
+import { relatoriosView } from './views/relatorios.js';
 
 const NIVEIS = { monitor: 1, supervisor: 2, coordenador: 3, gerente: 4, admin: 5 };
 const PERFIL_LABEL = { monitor: 'Monitor', supervisor: 'Supervisor', coordenador: 'Coordenador', gerente: 'Gerente', admin: 'Administrador' };
@@ -21,6 +22,8 @@ const NAV = [
   { id: 'feedback', ic: '✍️', label: 'Feedback', view: feedbackView, nivel: 1 },
   { id: 'contestacoes', ic: '⚖️', label: 'Contestações', view: contestacoesView, nivel: 2 },
   { id: 'calibracoes', ic: '🎯', label: 'Calibração', view: calibracoesView, nivel: 1 },
+  { grupo: 'Gestão' },
+  { id: 'relatorios', ic: '📈', label: 'Gerenciar', view: relatoriosView, nivel: 2 },
   { grupo: 'Cadastros' },
   { id: 'operadores', ic: '👤', label: 'Operadores', view: operadoresView, nivel: 2 },
   { id: 'equipes', ic: '👥', label: 'Equipes', view: equipesView, nivel: 3 },
