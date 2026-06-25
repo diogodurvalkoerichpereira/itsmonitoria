@@ -33,7 +33,7 @@ export async function calcularNota(formularioId: number, respostas: RespostaInpu
   falhaCritica: boolean;
 }> {
   const criterios = (await db
-    .prepare('SELECT id, peso, fatal FROM criterios WHERE formulario_id = ?')
+    .prepare('SELECT id, peso, fatal FROM criterios WHERE formulario_id = ? AND ativo = 1')
     .all(formularioId)) as CriterioRow[];
   const mapa = new Map(criterios.map((c) => [c.id, c]));
 

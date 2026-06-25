@@ -193,7 +193,8 @@ export async function initSchema(): Promise<void> {
     descricao     TEXT NOT NULL,
     peso          DOUBLE PRECISION NOT NULL DEFAULT 1,
     fatal         INTEGER NOT NULL DEFAULT 0,
-    ordem         INTEGER NOT NULL DEFAULT 0
+    ordem         INTEGER NOT NULL DEFAULT 0,
+    ativo         INTEGER NOT NULL DEFAULT 1
   );
 
   CREATE TABLE IF NOT EXISTS monitorias (
@@ -282,6 +283,8 @@ export async function initSchema(): Promise<void> {
     db.exec(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS ${col} ${type}`);
 
   await addColumn('operadores', 'cpf', 'TEXT');
+  // Soft-delete de criterio: removido na edicao mas mantido por ter respostas (historico).
+  await addColumn('criterios', 'ativo', 'INTEGER NOT NULL DEFAULT 1');
   // Senha do operador para assinatura do feedback (substitui a confirmacao por CPF).
   await addColumn('operadores', 'senha_hash', 'TEXT');
   await addColumn('monitorias', 'operacao', 'TEXT');

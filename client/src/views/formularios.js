@@ -30,7 +30,7 @@ export async function formulariosView(el) {
     </div>`;
 
   const linhaCriterio = (c = {}) => h(`
-    <div class="crit-row" style="grid-template-columns:1fr 130px 70px 60px auto">
+    <div class="crit-row" data-crit-id="${c.id ?? ''}" style="grid-template-columns:1fr 130px 70px 60px auto">
       <input class="its-input crit-desc" placeholder="Descrição do critério" value="${esc(c.descricao || '')}">
       <input class="its-input crit-cat" placeholder="Categoria" value="${esc(c.categoria || 'Geral')}">
       <input class="its-input crit-peso" type="number" min="1" step="1" placeholder="Peso" value="${c.peso ?? 10}">
@@ -72,6 +72,7 @@ export async function formulariosView(el) {
     salvar.onclick = async () => {
       erroBox.classList.add('hidden');
       const criterios = [...list.querySelectorAll('.crit-row')].map((r) => ({
+        id: r.dataset.critId ? Number(r.dataset.critId) : undefined,
         descricao: r.querySelector('.crit-desc').value.trim(),
         categoria: r.querySelector('.crit-cat').value.trim() || 'Geral',
         peso: Number(r.querySelector('.crit-peso').value) || 1,
