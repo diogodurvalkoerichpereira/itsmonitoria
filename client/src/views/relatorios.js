@@ -1,5 +1,5 @@
 import { api } from '../api.js';
-import { esc, barChart, scorePill, toast } from '../ui.js';
+import { esc, barChart, scorePill, toast, fmtData } from '../ui.js';
 
 // Gera e baixa um CSV a partir de um array de objetos. `colunas` define a ordem
 // e os rotulos do cabecalho: [{ key, label }].
@@ -22,7 +22,7 @@ function baixarCSV(nomeArquivo, colunas, linhas) {
 
 // Monta o relatorio completo em HTML e abre o dialogo de impressao do navegador,
 // onde o usuario escolhe "Salvar como PDF". Sem dependencias externas.
-function exportarPDF(secoes, meta) {
+function exportarPDF(secoes, meta, descricaoFiltro = '') {
   const linhasTabela = (cols, linhas) =>
     (linhas && linhas.length)
       ? linhas.map((l) => `<tr>${cols.map((c) => `<td>${esc(String(l[c.key] ?? '—'))}</td>`).join('')}</tr>`).join('')
@@ -56,6 +56,7 @@ function exportarPDF(secoes, meta) {
     <div class="head">
       <h1>Relatórios · iTS Qualidade</h1>
       <div class="sub">Gerado em ${agora} · Meta de qualidade: ${meta}</div>
+      ${descricaoFiltro ? `<div class="sub"><b>Filtros:</b> ${esc(descricaoFiltro)}</div>` : ''}
     </div>
     ${corpo}
     <div class="foot">Documento gerado automaticamente pelo módulo de Qualidade — ITSCS.</div>
@@ -83,16 +84,9 @@ function botaoExport(id, label = 'Exportar CSV') {
 
 export async function relatoriosView(el) {
   el.innerHTML = '<div class="empty">Carregando relatórios...</div>';
-  const d = await api.get('/relatorios');
-  const meta = d.meta ?? 80;
-
-  const fb = d.feedback?.resumo || {};
-  const fbEquipe = d.feedback?.porEquipe || [];
-  const slaDist = d.sla?.distribuicao || [];
-  const slaFora = d.sla?.foraPrazo || [];
-  const criterios = d.criteriosReprovados || [];
-  const abaixo = d.operadoresAbaixoMeta || [];
-  const monitores = d.produtividadeMonitores || [];
+  // Listas para os selects de filtro (equipes e monitores/usuarios).
+  const [equipes, usuarios] = await Promise.all([api.get('/equipes'), api.get('/usuarios')]);
+  const canais = ['Telefone', 'Chat', 'WhatsApp', 'Email'];
 
   el.innerHTML = `
     <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
@@ -100,6 +94,61 @@ export async function relatoriosView(el) {
       <button class="its-btn its-btn-primary its-btn-sm" id="export-pdf" type="button">📄 Exportar PDF</button>
     </div>
 
+    <div class="filters its-card" style="margin-bottom:14px">
+      <div class="form-group"><label class="its-label">Período — de</label>
+        <input class="its-input" type="date" id="f-de"></div>
+      <div class="form-group"><label class="its-label">até</label>
+        <input class="its-input" type="date" id="f-ate"></div>
+      <div class="form-group"><label class="its-label">Equipe</label>
+        <select class="its-select" id="f-equipe"><option value="">Todas</option>
+          ${equipes.map((e) => `<option value="${e.id}">${esc(e.nome)}</option>`).join('')}</select></div>
+      <div class="form-group"><label class="its-label">Monitor</label>
+        <select class="its-select" id="f-monitor"><option value="">Todos</option>
+          ${usuarios.map((u) => `<option value="${u.id}">${esc(u.nome)}</option>`).join('')}</select></div>
+      <div class="form-group"><label class="its-label">Canal</label>
+        <select class="its-select" id="f-canal"><option value="">Todos</option>
+          ${canais.map((c) => `<option>${c}</option>`).join('')}</select></div>
+      <button class="its-btn its-btn-secondary its-btn-sm" id="f-aplicar" type="button">Filtrar</button>
+      <button class="its-btn btn-ghost its-btn-sm" id="f-limpar" type="button">Limpar</button>
+    </div>
+
+    <div id="rel-conteudo"><div class="empty">Carregando...</div></div>`;
+
+  const cont = el.querySelector('#rel-conteudo');
+
+  // Descricao legivel dos filtros ativos (vai para o cabecalho do PDF).
+  function descricaoFiltro() {
+    const partes = [];
+    const de = el.querySelector('#f-de').value, ate = el.querySelector('#f-ate').value;
+    if (de || ate) partes.push(`Período: ${de ? fmtData(de) : '…'} a ${ate ? fmtData(ate) : '…'}`);
+    const eqSel = el.querySelector('#f-equipe'); if (eqSel.value) partes.push(`Equipe: ${eqSel.selectedOptions[0].text}`);
+    const moSel = el.querySelector('#f-monitor'); if (moSel.value) partes.push(`Monitor: ${moSel.selectedOptions[0].text}`);
+    const caSel = el.querySelector('#f-canal'); if (caSel.value) partes.push(`Canal: ${caSel.value}`);
+    return partes.length ? partes.join(' · ') : 'Sem filtros (todos os dados)';
+  }
+
+  async function carregar() {
+    cont.innerHTML = '<div class="empty">Carregando...</div>';
+    const p = new URLSearchParams();
+    const de = el.querySelector('#f-de').value, ate = el.querySelector('#f-ate').value;
+    const eq = el.querySelector('#f-equipe').value, mo = el.querySelector('#f-monitor').value, ca = el.querySelector('#f-canal').value;
+    if (de) p.set('de', de);
+    if (ate) p.set('ate', ate);
+    if (eq) p.set('equipe_id', eq);
+    if (mo) p.set('monitor_id', mo);
+    if (ca) p.set('canal', ca);
+
+    const d = await api.get('/relatorios' + (p.toString() ? '?' + p.toString() : ''));
+    const meta = d.meta ?? 80;
+    const fb = d.feedback?.resumo || {};
+    const fbEquipe = d.feedback?.porEquipe || [];
+    const slaDist = d.sla?.distribuicao || [];
+    const slaFora = d.sla?.foraPrazo || [];
+    const criterios = d.criteriosReprovados || [];
+    const abaixo = d.operadoresAbaixoMeta || [];
+    const monitores = d.produtividadeMonitores || [];
+
+    cont.innerHTML = `
     <!-- Acompanhamento de Feedback -->
     <div class="its-card" style="margin-bottom:14px">
       <div class="chart-title" style="display:flex;justify-content:space-between;align-items:center">
@@ -177,22 +226,30 @@ export async function relatoriosView(el) {
     abaixo:['operadores-abaixo-meta.csv', [{ key: 'operador', label: 'Operador' }, { key: 'equipe', label: 'Equipe' }, { key: 'total', label: 'Monitorias' }, { key: 'nota_media', label: 'Nota media' }, { key: 'falhas_criticas', label: 'Falhas criticas' }], abaixo],
     mon:   ['produtividade-monitores.csv', [{ key: 'monitor', label: 'Monitor' }, { key: 'total', label: 'Monitorias' }, { key: 'nota_media_aplicada', label: 'Nota media aplicada' }, { key: 'feedbacks', label: 'Feedbacks' }, { key: 'falhas_criticas', label: 'Falhas criticas' }], monitores],
   };
-  el.querySelectorAll('[data-export]').forEach((btn) => {
-    btn.onclick = () => {
-      const cfg = exports[btn.dataset.export];
-      if (cfg) baixarCSV(cfg[0], cfg[1], cfg[2]);
-    };
-  });
+    cont.querySelectorAll('[data-export]').forEach((btn) => {
+      btn.onclick = () => {
+        const cfg = exports[btn.dataset.export];
+        if (cfg) baixarCSV(cfg[0], cfg[1], cfg[2]);
+      };
+    });
 
-  // Exportacao PDF: relatorio completo (todas as secoes), reaproveitando as
-  // mesmas definicoes de colunas/dados do CSV.
-  el.querySelector('#export-pdf').onclick = () => {
-    exportarPDF([
-      { titulo: 'Acompanhamento de Feedback (por equipe)', colunas: exports.fb[1], linhas: exports.fb[2] },
-      { titulo: 'Operadores fora do SLA', colunas: exports.sla[1], linhas: exports.sla[2] },
-      { titulo: 'Critérios mais reprovados', colunas: exports.crit[1], linhas: exports.crit[2] },
-      { titulo: `Operadores abaixo da meta (< ${meta})`, colunas: exports.abaixo[1], linhas: exports.abaixo[2] },
-      { titulo: 'Produtividade dos monitores', colunas: exports.mon[1], linhas: exports.mon[2] },
-    ], meta);
+    // Exportacao PDF: relatorio completo (todas as secoes), reaproveitando as
+    // mesmas definicoes de colunas/dados do CSV, refletindo os filtros ativos.
+    el.querySelector('#export-pdf').onclick = () => {
+      exportarPDF([
+        { titulo: 'Acompanhamento de Feedback (por equipe)', colunas: exports.fb[1], linhas: exports.fb[2] },
+        { titulo: 'Operadores fora do SLA', colunas: exports.sla[1], linhas: exports.sla[2] },
+        { titulo: 'Critérios mais reprovados', colunas: exports.crit[1], linhas: exports.crit[2] },
+        { titulo: `Operadores abaixo da meta (< ${meta})`, colunas: exports.abaixo[1], linhas: exports.abaixo[2] },
+        { titulo: 'Produtividade dos monitores', colunas: exports.mon[1], linhas: exports.mon[2] },
+      ], meta, descricaoFiltro());
+    };
+  }
+
+  el.querySelector('#f-aplicar').onclick = carregar;
+  el.querySelector('#f-limpar').onclick = () => {
+    ['#f-de', '#f-ate', '#f-equipe', '#f-monitor', '#f-canal'].forEach((s) => { el.querySelector(s).value = ''; });
+    carregar();
   };
+  await carregar();
 }
