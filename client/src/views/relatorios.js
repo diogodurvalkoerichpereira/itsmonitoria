@@ -20,6 +20,56 @@ function baixarCSV(nomeArquivo, colunas, linhas) {
   URL.revokeObjectURL(url);
 }
 
+// Monta o relatorio completo em HTML e abre o dialogo de impressao do navegador,
+// onde o usuario escolhe "Salvar como PDF". Sem dependencias externas.
+function exportarPDF(secoes, meta) {
+  const linhasTabela = (cols, linhas) =>
+    (linhas && linhas.length)
+      ? linhas.map((l) => `<tr>${cols.map((c) => `<td>${esc(String(l[c.key] ?? '—'))}</td>`).join('')}</tr>`).join('')
+      : `<tr><td colspan="${cols.length}" style="text-align:center;color:#888">Sem dados</td></tr>`;
+
+  const bloco = (titulo, cols, linhas) => `
+    <h2>${esc(titulo)}</h2>
+    <table>
+      <thead><tr>${cols.map((c) => `<th>${esc(c.label)}</th>`).join('')}</tr></thead>
+      <tbody>${linhasTabela(cols, linhas)}</tbody>
+    </table>`;
+
+  const agora = new Date().toLocaleString('pt-BR');
+  const corpo = secoes.map((s) => bloco(s.titulo, s.colunas, s.linhas)).join('');
+  const html = `<!doctype html><html lang="pt-br"><head><meta charset="utf-8">
+    <title>Relatórios · iTS Qualidade</title>
+    <style>
+      * { box-sizing:border-box; }
+      body { font-family:Arial,Helvetica,sans-serif; color:#1f2937; margin:24px; }
+      .head { border-bottom:3px solid #ff6a00; padding-bottom:10px; margin-bottom:18px; }
+      .head h1 { margin:0; font-size:20px; color:#1f2937; }
+      .head .sub { font-size:12px; color:#6b7280; margin-top:4px; }
+      h2 { font-size:14px; margin:22px 0 8px; color:#ff6a00; page-break-after:avoid; }
+      table { width:100%; border-collapse:collapse; margin-bottom:8px; font-size:11px; page-break-inside:auto; }
+      th,td { border:1px solid #e5e7eb; padding:6px 8px; text-align:left; }
+      th { background:#f8fafc; font-weight:700; }
+      tr { page-break-inside:avoid; }
+      .foot { margin-top:20px; font-size:10px; color:#9ca3af; }
+      @media print { body { margin:12mm; } @page { margin:12mm; } }
+    </style></head><body>
+    <div class="head">
+      <h1>Relatórios · iTS Qualidade</h1>
+      <div class="sub">Gerado em ${agora} · Meta de qualidade: ${meta}</div>
+    </div>
+    ${corpo}
+    <div class="foot">Documento gerado automaticamente pelo módulo de Qualidade — ITSCS.</div>
+    </body></html>`;
+
+  const win = window.open('', '_blank');
+  if (!win) { toast('Permita pop-ups para exportar o PDF', true); return; }
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  // aguarda o layout/render antes de abrir a impressao
+  win.onload = () => setTimeout(() => win.print(), 250);
+}
+
 function tabela(cabecalhos, linhasHtml) {
   return `<div class="table-wrap"><table class="its-table">
     <thead><tr>${cabecalhos.map((h) => `<th>${h}</th>`).join('')}</tr></thead>
@@ -45,7 +95,10 @@ export async function relatoriosView(el) {
   const monitores = d.produtividadeMonitores || [];
 
   el.innerHTML = `
-    <div class="section-title">Gerenciar · Relatórios</div>
+    <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
+      <span>Gerenciar · Relatórios</span>
+      <button class="its-btn its-btn-primary its-btn-sm" id="export-pdf" type="button">📄 Exportar PDF</button>
+    </div>
 
     <!-- Acompanhamento de Feedback -->
     <div class="its-card" style="margin-bottom:14px">
@@ -130,4 +183,16 @@ export async function relatoriosView(el) {
       if (cfg) baixarCSV(cfg[0], cfg[1], cfg[2]);
     };
   });
+
+  // Exportacao PDF: relatorio completo (todas as secoes), reaproveitando as
+  // mesmas definicoes de colunas/dados do CSV.
+  el.querySelector('#export-pdf').onclick = () => {
+    exportarPDF([
+      { titulo: 'Acompanhamento de Feedback (por equipe)', colunas: exports.fb[1], linhas: exports.fb[2] },
+      { titulo: 'Operadores fora do SLA', colunas: exports.sla[1], linhas: exports.sla[2] },
+      { titulo: 'Critérios mais reprovados', colunas: exports.crit[1], linhas: exports.crit[2] },
+      { titulo: `Operadores abaixo da meta (< ${meta})`, colunas: exports.abaixo[1], linhas: exports.abaixo[2] },
+      { titulo: 'Produtividade dos monitores', colunas: exports.mon[1], linhas: exports.mon[2] },
+    ], meta);
+  };
 }
