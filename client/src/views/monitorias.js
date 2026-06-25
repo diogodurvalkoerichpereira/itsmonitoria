@@ -50,7 +50,11 @@ export async function carregarAnexos(container, monitoriaId, comExcluir) {
 
 export async function monitoriasView(el) {
   el.innerHTML = '<div class="empty">Carregando...</div>';
-  const [equipes, operadores] = await Promise.all([api.get('/equipes'), api.get('/operadores')]);
+  const [equipes, operadores, usuarios] = await Promise.all([
+    api.get('/equipes'), api.get('/operadores'), api.get('/equipes/usuarios-disponiveis'),
+  ]);
+  // Monitores (avaliadores) = usuarios que podem registrar monitorias.
+  const monitores = usuarios.filter((u) => u.perfil !== 'operador').sort((a, b) => a.nome.localeCompare(b.nome));
 
   el.innerHTML = `
     <div class="page-head">
@@ -64,6 +68,9 @@ export async function monitoriasView(el) {
       <div class="form-group"><label class="its-label">Operador</label>
         <select class="its-select" id="f-operador"><option value="">Todos</option>
           ${operadores.map((o) => `<option value="${o.id}">${esc(o.nome)}${o.matricula ? ' · ' + esc(o.matricula) : ''}</option>`).join('')}</select></div>
+      <div class="form-group"><label class="its-label">Monitor</label>
+        <select class="its-select" id="f-monitor"><option value="">Todos</option>
+          ${monitores.map((u) => `<option value="${u.id}">${esc(u.nome)}</option>`).join('')}</select></div>
       <div class="form-group"><label class="its-label">CPF do operador</label>
         <input class="its-input" id="f-cpf" placeholder="000.000.000-00" style="width:160px"></div>
       <div class="form-group"><label class="its-label">Canal</label>
@@ -80,11 +87,13 @@ export async function monitoriasView(el) {
     const q = new URLSearchParams();
     const eq = el.querySelector('#f-equipe').value;
     const op = el.querySelector('#f-operador').value;
+    const mon = el.querySelector('#f-monitor').value;
     const cpf = el.querySelector('#f-cpf').value.trim();
     const ca = el.querySelector('#f-canal').value;
     const st = el.querySelector('#f-status').value;
     if (eq) q.set('equipe_id', eq);
     if (op) q.set('operador_id', op);
+    if (mon) q.set('monitor_id', mon);
     if (cpf) q.set('cpf', cpf);
     if (ca) q.set('canal', ca);
     if (st) q.set('status', st);

@@ -6,11 +6,12 @@ import { notificarFalhaCritica } from '../notificacoes.js';
 export const monitoriasRouter = Router();
 
 monitoriasRouter.get('/', async (req, res) => {
-  const { operador_id, equipe_id, canal, status, de, ate, cpf } = req.query;
+  const { operador_id, equipe_id, monitor_id, canal, status, de, ate, cpf } = req.query;
   const where: string[] = [];
   const params: unknown[] = [];
   if (operador_id) { where.push('m.operador_id = ?'); params.push(operador_id); }
   if (equipe_id) { where.push('o.equipe_id = ?'); params.push(equipe_id); }
+  if (monitor_id) { where.push('m.monitor_id = ?'); params.push(monitor_id); }
   if (canal) { where.push('m.canal = ?'); params.push(canal); }
   if (status) { where.push('m.status = ?'); params.push(status); }
   if (de) { where.push('m.data_atendimento::date >= ?::date'); params.push(de); }
