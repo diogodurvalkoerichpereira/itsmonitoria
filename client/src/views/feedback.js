@@ -103,6 +103,11 @@ function scorecard(m) {
       <div class="its-card"><div class="stat-label">Data atend.</div><b>${fmtData(m.data_atendimento)}</b></div>
       <div class="its-card"><div class="stat-label">Nota final</div>${m.falha_critica ? '<span class="its-badge badge-red">Falha crítica · 0</span>' : scorePill(m.nota_final)}</div>
     </div>
+    <div class="card-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">
+      <div class="its-card"><div class="stat-label">Operação</div><b>${esc(m.operacao || '—')}</b></div>
+      <div class="its-card"><div class="stat-label">Produto</div><b>${esc(m.produto || '—')}</b></div>
+      <div class="its-card"><div class="stat-label">Tabulação</div><b>${esc(m.tabulacao || '—')}</b></div>
+    </div>
     ${m.observacoes ? `<div class="its-alert alert-info"><b>Observações da monitoria:</b>&nbsp;${esc(m.observacoes)}</div>` : ''}
     ${Object.entries(grupos).map(([cat, items]) => `
       <div class="cat-head">${esc(cat)}</div>
