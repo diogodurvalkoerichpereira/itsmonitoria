@@ -304,6 +304,8 @@ export async function initSchema(): Promise<void> {
   // Posicionamento do operador no feedback (concorda x discorda)
   await addColumn('monitorias', 'feedback_concordou', 'INTEGER');
   await addColumn('monitorias', 'feedback_discordancia', 'TEXT');
+  // Usuario que aplicou o feedback (quem conduziu a tratativa com o operador).
+  await addColumn('monitorias', 'feedback_aplicado_por', 'INTEGER');
 
   // Inclui 'coordenador' nos papeis de membro de equipe (bancos ja existentes
   // foram criados com o CHECK antigo: supervisor/monitor/gerente).

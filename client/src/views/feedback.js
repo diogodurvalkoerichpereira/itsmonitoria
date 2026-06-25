@@ -53,7 +53,7 @@ export async function feedbackView(el) {
     const itens = await api.get('/feedback?' + q.toString());
     el.querySelector('#lista').innerHTML = `
       <table class="its-table">
-        <thead><tr><th>Data atend.</th><th>Protocolo</th><th>Operador</th><th>Equipe</th><th>Nota</th><th>Situação</th><th>Feedback em</th><th>Ação</th></tr></thead>
+        <thead><tr><th>Data atend.</th><th>Protocolo</th><th>Operador</th><th>Equipe</th><th>Monitor</th><th>Nota</th><th>Situação</th><th>Feedback em</th><th>Feedback por</th><th>Ação</th></tr></thead>
         <tbody>
           ${itens.map((m) => `
             <tr>
@@ -61,15 +61,17 @@ export async function feedbackView(el) {
               <td>${esc(m.protocolo || '—')}</td>
               <td>${esc(m.operador_nome)}</td>
               <td>${esc(m.equipe_nome || '—')}</td>
+              <td>${esc(m.monitor_nome || '—')}</td>
               <td>${m.falha_critica ? '<span class="its-badge badge-red">Falha crítica</span>' : scorePill(m.nota_final)}</td>
               <td>${m.feedback_aplicado
                 ? '<span class="its-badge badge-green"><span class="badge-dot"></span>Realizado</span>'
                 : '<span class="its-badge badge-orange"><span class="badge-dot"></span>Pendente</span>'}</td>
               <td>${m.feedback_aplicado ? fmtData(m.data_feedback) : '—'}</td>
+              <td>${m.feedback_aplicado ? esc(m.feedback_aplicado_por_nome || '—') : '—'}</td>
               <td>${m.feedback_aplicado
                 ? `<button class="its-btn its-btn-ghost its-btn-sm" data-ver="${m.id}">Ver</button>`
                 : `<button class="its-btn its-btn-primary its-btn-sm" data-fb="${m.id}">Aplicar feedback</button>`}</td>
-            </tr>`).join('') || '<tr><td colspan="8" class="empty">Nenhum atendimento nesta situação</td></tr>'}
+            </tr>`).join('') || '<tr><td colspan="10" class="empty">Nenhum atendimento nesta situação</td></tr>'}
         </tbody>
       </table>`;
     el.querySelectorAll('[data-fb]').forEach((b) => b.onclick = () => aplicar(b.dataset.fb, carregar));

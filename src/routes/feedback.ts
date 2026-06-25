@@ -21,11 +21,13 @@ feedbackRouter.get('/', async (req, res) => {
     SELECT m.id, m.protocolo, m.canal, m.data_atendimento, m.nota_final, m.falha_critica,
            m.feedback_aplicado, m.data_feedback, m.status_feedback, m.feedback_assinatura_cpf,
            o.nome AS operador_nome, o.cpf AS operador_cpf, e.nome AS equipe_nome,
-           u.nome AS monitor_nome, f.nome AS formulario_nome
+           u.nome AS monitor_nome, f.nome AS formulario_nome,
+           ap.nome AS feedback_aplicado_por_nome
     FROM monitorias m
     JOIN operadores o ON o.id = m.operador_id
     LEFT JOIN equipes e ON e.id = o.equipe_id
     JOIN usuarios u ON u.id = m.monitor_id
+    LEFT JOIN usuarios ap ON ap.id = m.feedback_aplicado_por
     JOIN formularios f ON f.id = m.formulario_id
     WHERE ${where.join(' AND ')}
     ORDER BY m.feedback_aplicado ASC, m.data_atendimento DESC
@@ -72,12 +74,12 @@ feedbackRouter.post('/:id/aplicar', async (req, res) => {
       UPDATE monitorias
       SET feedback_aplicado = 1, data_feedback = to_char((now() AT TIME ZONE 'UTC'), 'YYYY-MM-DD HH24:MI:SS'),
           status_feedback = ?, feedback_assinatura_cpf = ?, feedback_observacao = ?,
-          feedback_concordou = ?, feedback_discordancia = ?
+          feedback_concordou = ?, feedback_discordancia = ?, feedback_aplicado_por = ?
       WHERE id = ?
     `).run(
       concordouVal ? 'Realizado' : 'Realizado - Discordancia',
       m.operador_cpf, observacao ?? null,
-      concordouVal, concordouVal ? null : motivo, req.params.id
+      concordouVal, concordouVal ? null : motivo, req.usuario!.id, req.params.id
     );
 
     // discordancia gera uma contestacao para analise do supervisor
