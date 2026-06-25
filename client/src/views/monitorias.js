@@ -17,8 +17,9 @@ function iconeAnexo(mime = '') {
   return '📄';
 }
 
-// renderiza a lista de anexos de uma monitoria (com player de audio inline)
-async function carregarAnexos(container, monitoriaId, comExcluir) {
+// renderiza a lista de anexos de uma monitoria (com player de audio inline).
+// Exportada para reuso na tela de Feedback (visualizacao read-only).
+export async function carregarAnexos(container, monitoriaId, comExcluir) {
   let lista = [];
   try { lista = await api.get('/monitorias/' + monitoriaId + '/anexos'); }
   catch { container.innerHTML = '<div style="font-size:.8rem;color:var(--its-danger)">Falha ao carregar anexos.</div>'; return; }

@@ -1,5 +1,6 @@
 import { api } from '../api.js';
 import { esc, scorePill, fmtData, openModal, toast, h } from '../ui.js';
+import { carregarAnexos } from './monitorias.js';
 
 // Avaliacao binaria: Pontuou / Não pontuou. 'parcial'/'na' mantidos para
 // exibir corretamente monitorias gravadas no modelo antigo (4 opcoes).
@@ -151,11 +152,15 @@ async function aplicar(id, reload, somenteVer = false) {
     <div id="fb-erro" class="its-alert alert-error hidden"></div>`;
 
   const editavel = !(somenteVer || realizado);
-  const body = h(`<div>${scorecard(m)}${editavel ? aplicarBloco : realizadoBloco}</div>`);
+  const anexosBloco = `<div class="cat-head" style="margin-top:16px">Anexos da monitoria</div><div id="fb-anexos"><div class="empty">Carregando anexos...</div></div>`;
+  const body = h(`<div>${scorecard(m)}${anexosBloco}${editavel ? aplicarBloco : realizadoBloco}</div>`);
   const footer = editavel
     ? h(`<button class="its-btn its-btn-primary">Confirmar assinatura e registrar</button>`)
     : null;
   const { close } = openModal({ title: somenteVer ? 'Feedback realizado' : 'Aplicar feedback ao operador', body, footer, lg: true });
+
+  // Mostra os anexos inseridos na monitoria (audio/imagem/video/documento), read-only
+  carregarAnexos(body.querySelector('#fb-anexos'), id, false);
 
   if (editavel) {
     const selConcorda = body.querySelector('#fb-concorda');
