@@ -31,7 +31,7 @@ feedbackRouter.get('/', async (req, res) => {
     LEFT JOIN usuarios ap ON ap.id = m.feedback_aplicado_por
     JOIN formularios f ON f.id = m.formulario_id
     WHERE ${where.join(' AND ')}
-    ORDER BY m.feedback_aplicado ASC, m.data_atendimento DESC
+    ORDER BY m.criado_em DESC
     LIMIT 1000
   `).all(...params);
   res.json(rows);
