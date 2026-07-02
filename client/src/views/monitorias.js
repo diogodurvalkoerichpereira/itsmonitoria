@@ -73,6 +73,8 @@ export async function monitoriasView(el) {
           ${monitores.map((u) => `<option value="${u.id}">${esc(u.nome)}</option>`).join('')}</select></div>
       <div class="form-group"><label class="its-label">CPF do operador</label>
         <input class="its-input" id="f-cpf" placeholder="000.000.000-00" style="width:160px"></div>
+      <div class="form-group"><label class="its-label">Produto</label>
+        <input class="its-input" id="f-produto" placeholder="ex: Internet Fibra" style="width:170px"></div>
       <div class="form-group"><label class="its-label">Canal</label>
         <select class="its-select" id="f-canal"><option value="">Todos</option>
           ${['Telefone','Chat','WhatsApp','Email'].map((c) => `<option>${c}</option>`).join('')}</select></div>
@@ -89,12 +91,14 @@ export async function monitoriasView(el) {
     const op = el.querySelector('#f-operador').value;
     const mon = el.querySelector('#f-monitor').value;
     const cpf = el.querySelector('#f-cpf').value.trim();
+    const produto = el.querySelector('#f-produto').value.trim();
     const ca = el.querySelector('#f-canal').value;
     const st = el.querySelector('#f-status').value;
     if (eq) q.set('equipe_id', eq);
     if (op) q.set('operador_id', op);
     if (mon) q.set('monitor_id', mon);
     if (cpf) q.set('cpf', cpf);
+    if (produto) q.set('produto', produto);
     if (ca) q.set('canal', ca);
     if (st) q.set('status', st);
     const mons = await api.get('/monitorias?' + q.toString());

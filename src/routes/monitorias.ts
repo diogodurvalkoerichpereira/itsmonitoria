@@ -6,7 +6,7 @@ import { notificarFalhaCritica } from '../notificacoes.js';
 export const monitoriasRouter = Router();
 
 monitoriasRouter.get('/', async (req, res) => {
-  const { operador_id, equipe_id, monitor_id, canal, status, de, ate, cpf } = req.query;
+  const { operador_id, equipe_id, monitor_id, canal, status, de, ate, cpf, produto } = req.query;
   const where: string[] = [];
   const params: unknown[] = [];
   if (operador_id) { where.push('m.operador_id = ?'); params.push(operador_id); }
@@ -17,6 +17,7 @@ monitoriasRouter.get('/', async (req, res) => {
   if (de) { where.push('m.data_atendimento::date >= ?::date'); params.push(de); }
   if (ate) { where.push('m.data_atendimento::date <= ?::date'); params.push(ate); }
   if (cpf) { where.push('o.cpf LIKE ?'); params.push('%' + String(cpf) + '%'); }
+  if (produto) { where.push('m.produto LIKE ?'); params.push('%' + String(produto) + '%'); }
   const clause = where.length ? 'WHERE ' + where.join(' AND ') : '';
 
   const rows = await db.prepare(`
