@@ -53,10 +53,11 @@ export async function feedbackView(el) {
     const itens = await api.get('/feedback?' + q.toString());
     el.querySelector('#lista').innerHTML = `
       <table class="its-table">
-        <thead><tr><th>Data atend.</th><th>Protocolo</th><th>Operador</th><th>Equipe</th><th>Monitor</th><th>Nota</th><th>Situação</th><th>Feedback em</th><th>Feedback por</th><th>Ação</th></tr></thead>
+        <thead><tr><th>ID</th><th>Data atend.</th><th>Protocolo</th><th>Operador</th><th>Equipe</th><th>Monitor</th><th>Nota</th><th>Situação</th><th>Feedback em</th><th>Feedback por</th><th>Ação</th></tr></thead>
         <tbody>
           ${itens.map((m) => `
             <tr>
+              <td><b>${m.id}</b></td>
               <td>${fmtData(m.data_atendimento)}</td>
               <td>${esc(m.protocolo || '—')}</td>
               <td>${esc(m.operador_nome)}</td>
@@ -71,7 +72,7 @@ export async function feedbackView(el) {
               <td>${m.feedback_aplicado
                 ? `<button class="its-btn its-btn-ghost its-btn-sm" data-ver="${m.id}">Ver</button>`
                 : `<button class="its-btn its-btn-primary its-btn-sm" data-fb="${m.id}">Aplicar feedback</button>`}</td>
-            </tr>`).join('') || '<tr><td colspan="10" class="empty">Nenhum atendimento nesta situação</td></tr>'}
+            </tr>`).join('') || '<tr><td colspan="11" class="empty">Nenhum atendimento nesta situação</td></tr>'}
         </tbody>
       </table>`;
     el.querySelectorAll('[data-fb]').forEach((b) => b.onclick = () => aplicar(b.dataset.fb, carregar));
