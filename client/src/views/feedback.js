@@ -32,6 +32,8 @@ export async function feedbackView(el) {
         <input class="its-input" id="f-nome" placeholder="Buscar nome" style="width:170px"></div>
       <div class="form-group"><label class="its-label">CPF</label>
         <input class="its-input" id="f-cpf" placeholder="000.000.000-00" style="width:150px"></div>
+      <div class="form-group"><label class="its-label">Produto</label>
+        <input class="its-input" id="f-produto" placeholder="ex: Internet Fibra" style="width:170px"></div>
       <div class="form-group"><label class="its-label">Feedback em</label>
         <input class="its-input" type="date" id="f-data" style="width:160px"></div>
       <button class="its-btn its-btn-ghost its-btn-sm" id="f-limpar">Limpar</button>
@@ -44,11 +46,13 @@ export async function feedbackView(el) {
     const eq = el.querySelector('#f-equipe').value;
     const nome = el.querySelector('#f-nome').value.trim();
     const cpf = el.querySelector('#f-cpf').value.trim();
+    const produto = el.querySelector('#f-produto').value.trim();
     const data = el.querySelector('#f-data').value;
     if (st) q.set('status_feedback', st);
     if (eq) q.set('equipe_id', eq);
     if (nome) q.set('nome', nome);
     if (cpf) q.set('cpf', cpf);
+    if (produto) q.set('produto', produto);
     if (data) q.set('feedback_em', data);
     const itens = await api.get('/feedback?' + q.toString());
     el.querySelector('#lista').innerHTML = `
@@ -84,11 +88,13 @@ export async function feedbackView(el) {
   el.querySelector('#f-data').onchange = carregar;
   el.querySelector('#f-nome').oninput = carregar;
   el.querySelector('#f-cpf').oninput = carregar;
+  el.querySelector('#f-produto').oninput = carregar;
   el.querySelector('#f-limpar').onclick = () => {
     el.querySelector('#f-status').value = '';
     el.querySelector('#f-equipe').value = '';
     el.querySelector('#f-nome').value = '';
     el.querySelector('#f-cpf').value = '';
+    el.querySelector('#f-produto').value = '';
     el.querySelector('#f-data').value = '';
     carregar();
   };

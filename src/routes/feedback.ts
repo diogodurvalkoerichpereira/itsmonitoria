@@ -6,7 +6,7 @@ export const feedbackRouter = Router();
 
 // Lista atendimentos monitorados para feedback (pendentes e realizados)
 feedbackRouter.get('/', async (req, res) => {
-  const { status_feedback, operador_id, equipe_id, nome, cpf, feedback_em } = req.query;
+  const { status_feedback, operador_id, equipe_id, nome, cpf, feedback_em, produto } = req.query;
   const where: string[] = ["m.status != 'rascunho'"];
   const params: unknown[] = [];
   if (status_feedback === 'pendente') where.push('m.feedback_aplicado = 0');
@@ -16,6 +16,7 @@ feedbackRouter.get('/', async (req, res) => {
   if (nome) { where.push('o.nome LIKE ?'); params.push('%' + String(nome) + '%'); }
   if (cpf) { where.push('o.cpf LIKE ?'); params.push('%' + String(cpf) + '%'); }
   if (feedback_em) { where.push('m.data_feedback::date = ?::date'); params.push(feedback_em); }
+  if (produto) { where.push('m.produto LIKE ?'); params.push('%' + String(produto) + '%'); }
 
   const rows = await db.prepare(`
     SELECT m.id, m.protocolo, m.canal, m.data_atendimento, m.nota_final, m.falha_critica,
