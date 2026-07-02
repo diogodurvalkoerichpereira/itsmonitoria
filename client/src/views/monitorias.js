@@ -118,11 +118,7 @@ export async function monitoriasView(el) {
             <th>Data Monitoria</th>
             <th>Monitor</th>
             <th>Monitoria Padrao</th>
-            <th>Feedback Aplicado</th>
-            <th>Data Feedback</th>
             <th>Status Feedback</th>
-            <th>SLA</th>
-            <th>Detalhe SLA</th>
           </tr>
         </thead>
         <tbody>
@@ -144,12 +140,8 @@ export async function monitoriasView(el) {
               <td>${fmtData(m.data_monitoria)}</td>
               <td>${esc(m.monitor_nome)}</td>
               <td>${m.monitoria_padrao ? 'Sim' : 'Não'}</td>
-              <td>${m.feedback_aplicado ? 'Sim' : 'Não'}</td>
-              <td>${fmtData(m.data_feedback)}</td>
               <td>${esc(m.status_feedback || '—')}</td>
-              <td>${esc(m.sla || '—')}</td>
-              <td>${esc(m.detalhe_sla || '—')}</td>
-            </tr>`).join('') || `<tr><td colspan="21" class="empty">Nenhuma monitoria encontrada</td></tr>`}
+            </tr>`).join('') || `<tr><td colspan="17" class="empty">Nenhuma monitoria encontrada</td></tr>`}
         </tbody>
       </table>`;
 
@@ -226,19 +218,10 @@ async function abrirMonitoria(id = null, reload) {
     </div>
     <div class="form-row" style="margin-top: 8px; margin-bottom: 8px;">
       <div class="form-group" style="display:flex;align-items:center;gap:8px;margin-bottom:0"><label class="its-label" style="margin-bottom:0;display:flex;align-items:center;gap:6px"><input type="checkbox" id="m-padrao" ${m ? (m.monitoria_padrao ? 'checked' : '') : 'checked'}> Monitoria Padrão</label></div>
-      <div class="form-group" style="display:flex;align-items:center;gap:8px;margin-bottom:0"><label class="its-label" style="margin-bottom:0;display:flex;align-items:center;gap:6px"><input type="checkbox" id="m-feed-ap" ${m?.feedback_aplicado ? 'checked' : ''}> Feedback Aplicado</label></div>
-    </div>
-    <div class="form-row">
-      <div class="form-group"><label class="its-label">Data do Feedback</label><input class="its-input" type="date" id="m-feed-data" value="${m?.data_feedback || ''}"></div>
       <div class="form-group"><label class="its-label">Status do Feedback</label>
         <select class="its-select" id="m-feed-status">${['Pendente','Realizado','Recusado'].map((sf) => `<option ${m?.status_feedback === sf ? 'selected' : ''}>${sf}</option>`).join('')}</select></div>
     </div>
-    <div class="form-row">
-      <div class="form-group"><label class="its-label">SLA</label>
-        <select class="its-select" id="m-sla">${['No Prazo','Tratativa Necessária','Excedido'].map((sl) => `<option ${m?.sla === sl ? 'selected' : ''}>${sl}</option>`).join('')}</select></div>
-      <div class="form-group"><label class="its-label">Detalhe SLA</label><input class="its-input" id="m-sla-det" placeholder="ex: Dentro do prazo" value="${esc(m?.detalhe_sla || '')}"></div>
-    </div>
-    
+
     <div class="cat-head">Avaliação dos critérios</div>
     <div id="crit-area"><div class="empty">Selecione um formulário</div></div>
     <div class="form-group" style="margin-top:14px"><label class="its-label">Observações / feedback ao operador</label><textarea class="its-input" id="m-obs" rows="2">${esc(m?.observacoes || '')}</textarea></div>
@@ -343,11 +326,13 @@ async function abrirMonitoria(id = null, reload) {
       produto: body.querySelector('#m-prod').value.trim(),
       data_monitoria: body.querySelector('#m-data-mon').value || null,
       monitoria_padrao: body.querySelector('#m-padrao').checked ? 1 : 0,
-      feedback_aplicado: body.querySelector('#m-feed-ap').checked ? 1 : 0,
-      data_feedback: body.querySelector('#m-feed-data').value || null,
       status_feedback: body.querySelector('#m-feed-status').value,
-      sla: body.querySelector('#m-sla').value,
-      detalhe_sla: body.querySelector('#m-sla-det').value.trim(),
+      // SLA/Detalhe SLA/Feedback Aplicado/Data Feedback saíram do formulário;
+      // preserva os valores já gravados (se houver) em vez de zerá-los ao editar.
+      feedback_aplicado: m?.feedback_aplicado ? 1 : 0,
+      data_feedback: m?.data_feedback ?? null,
+      sla: m?.sla ?? null,
+      detalhe_sla: m?.detalhe_sla ?? null,
       respostas: [...respostas.entries()].map(([criterio_id, r]) => ({ criterio_id, valor: r.valor })),
     };
     salvar.disabled = true;
@@ -410,11 +395,7 @@ async function detalhe(id, reload) {
         <div><span style="color:var(--its-muted)">Produto:</span> <b>${esc(m.produto || '—')}</b></div>
         <div><span style="color:var(--its-muted)">Data Monitoria:</span> <b>${fmtData(m.data_monitoria)}</b></div>
         <div><span style="color:var(--its-muted)">Monitoria Padrão:</span> <b>${m.monitoria_padrao ? 'Sim' : 'Não'}</b></div>
-        <div><span style="color:var(--its-muted)">Feedback Aplicado:</span> <b>${m.feedback_aplicado ? 'Sim' : 'Não'}</b></div>
-        <div><span style="color:var(--its-muted)">Data Feedback:</span> <b>${fmtData(m.data_feedback)}</b></div>
         <div><span style="color:var(--its-muted)">Status Feedback:</span> <b>${esc(m.status_feedback || '—')}</b></div>
-        <div><span style="color:var(--its-muted)">SLA:</span> <b>${esc(m.sla || '—')}</b></div>
-        <div style="grid-column: span 2"><span style="color:var(--its-muted)">Detalhe SLA:</span> <b>${esc(m.detalhe_sla || '—')}</b></div>
       </div>
     </div>
 
